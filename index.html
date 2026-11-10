@@ -121,8 +121,10 @@ summary::before{content:"▸";margin-right:6px} details[open]>summary::before{co
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;flex-wrap:wrap}
 .row+.row{border-top:1px solid var(--line)}
+.row>span:first-child{flex:1 1 0;min-width:0}
 .stepper{display:flex;align-items:center;gap:14px}
-.stepper b{min-width:92px;text-align:center;font-size:22px;font-variant-numeric:tabular-nums}
+.stepper{gap:10px}
+.stepper b{min-width:76px;text-align:center;font-size:22px;font-variant-numeric:tabular-nums}
 
 /* Treadmill & lists */
 .tmrow{width:100%;display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 12px;margin-top:8px;border:2px solid var(--line);border-radius:14px;background:var(--surface);text-align:left}
@@ -242,8 +244,6 @@ const DEFAULT_PLAN = {
     { name:'Cool-down',    min:'5',    setting:'Incline 0 · Speed 4.5' }
   ],
   walkCue: 'Short, even steps. Land softly on the heel, roll through mid-foot to toes. No need to hold the rails.',
-  // Session timeline: [phase, minutes]. Starts when you tap "Start workout" (total 1 h 15 min).
-  timeline: [ ['Warm-up', 7], ['Weights', 35], ['Treadmill', 20], ['Stretch & rest', 5], ['Wrap up', 8] ],
   tips: [
     "Don't train to failure — keep 2–3 reps in reserve.",
     'Increase weight only after completing all reps with good form.'
@@ -256,6 +256,10 @@ const DEFAULT_PLAN = {
   ]
 };
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* Session timeline phases. Durations (minutes) are editable in Settings; default total 1 h 15 min.
+   The timeline starts when you tap "Start workout". */
+const PHASES = [['warm', 'Warm-up'], ['weights', 'Weights'], ['treadmill', 'Treadmill'], ['stretch', 'Stretch & rest'], ['wrap', 'Wrap up']];
+const DEFAULT_PHASES = { warm:5, weights:37, treadmill:20, stretch:5, wrap:8 };
 /* InBody fields you can log (all optional) */
 const IB_FIELDS = [
   ['weight', 'Weight', 'kg'], ['smm', 'Skeletal muscle', 'kg'], ['bfm', 'Body fat mass', 'kg'],
@@ -338,13 +342,14 @@ const DEFAULT_STATE = () => ({
   current: null,        // in-progress session (resumed if reopened the same day)
   inbody: [],           // InBody results, newest first
   plan: null,           // custom plan (null = DEFAULT_PLAN)
-  settings: { rest:90, startDate:null }
+  settings: { rest:90, startDate:null, phases:{ ...DEFAULT_PHASES } }
 });
 function migrate(d) {
   const base = DEFAULT_STATE();
   if (!d || typeof d !== 'object') return base;
   if ((d.version || 1) < 2) { delete d.assessments; d.plan = null; }   // v1 → v2: new 1 kg steps, plain-English plan
-  return { ...base, ...d, settings: { rest: d.settings?.rest ?? 90, startDate: d.settings?.startDate ?? null }, version: 2 };
+  return { ...base, ...d, version: 2, settings: { rest: d.settings?.rest ?? 90, startDate: d.settings?.startDate ?? null,
+    phases: { ...DEFAULT_PHASES, ...(d.settings?.phases || {}) } } };
 }
 function load() {
   try { const raw = localStorage.getItem(KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) {}
@@ -555,25 +560,41 @@ function treadmillCard(c) {
         <span><b>${esc(ph.name)}</b> · ${esc(ph.min)} min<br><small class="muted">${esc(ph.setting)}</small></span></button>`; }).join('') +
     `<p class="muted small">${esc(p.walkCue)}</p></section>`;
 }
-/* Session timeline bar (header): starts when you tap "Start workout", planned end = start + 1 h 15 min */
-function timelineHTML(c) {
-  const tl = DEFAULT_PLAN.timeline, total = tl.reduce((a, p) => a + p[1], 0);
-  const clock = ms => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-  if (!c || !c.start) {
-    return `<div class="tlbar">${tl.map(p => `<i class="tseg" style="flex:${p[1]}"></i>`).join('')}</div>
-      <div class="tllbl"><span>Not started · tap <b>Start workout</b></span><span>Plan ${Math.floor(total / 60)} h ${total % 60} min</span></div>`;
+/* ---- Session timeline (header bar). Each session keeps its own phase list (c.ph) and skips (c.cut):
+   c.cut[k] = minute (since start) when phase k was skipped; -1 = skipped before it began. ---- */
+const phaseName = id => (PHASES.find(p => p[0] === id) || [id, id])[1];
+const fmtDur = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
+const planTotal = () => PHASES.reduce((a, [id]) => a + (S.settings.phases[id] || 0), 0);
+const clockOf = ms => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const elapsedMin = c => c.start ? (Date.now() - c.start) / 60000 : -1;
+function phaseLayout(c) {
+  if (!c.ph) {   // first time: copy durations from Settings; sessions without treadmill skip it
+    c.ph = PHASES.map(([id]) => ({ id, m: S.settings.phases[id] ?? 0 })); c.cut = {};
+    if (!c.tm.length) { const k = c.ph.findIndex(p => p.id === 'treadmill'); if (k >= 0) c.cut[k] = -1; }
   }
-  const el = (Date.now() - c.start) / 60000; let acc = 0, cur = null;
-  const segs = tl.map(([n, m], k) => {
-    const a = acc; acc += m;
-    if (el >= a && el < acc) cur = { n, end: acc, k };
-    return `<i class="tseg${el >= acc ? ' past' : el >= a ? ' on' : ''}" style="flex:${m}"></i>`;
-  }).join('');
-  const range = `<span>${clock(c.start)}–${clock(c.start + total * 60000)}</span>`;
+  if (!c.start) c.ph.forEach(p => { p.m = S.settings.phases[p.id] ?? p.m; });   // Settings apply until you start
+  let acc = 0;
+  return c.ph.map((p, k) => {
+    const cut = c.cut[k], d = cut != null ? Math.max(0, Math.min(p.m, cut - acc)) : p.m;
+    const r = { k, id: p.id, name: phaseName(p.id), a: acc, b: acc + d, m: p.m, skipped: cut != null };
+    acc += d; return r;
+  });
+}
+function timelineHTML(c) {
+  if (!c) return '';
+  const L = phaseLayout(c), total = L.length ? L[L.length - 1].b : 0, live = L.filter(p => p.b > p.a);
+  if (!c.start) {
+    return `<div class="tlbar">${live.map(p => `<i class="tseg" style="flex:${p.b - p.a}"></i>`).join('')}</div>
+      <div class="tllbl"><span>Not started · tap to edit or skip ›</span><span>Plan ${fmtDur(total)}</span></div>`;
+  }
+  const el = elapsedMin(c), cur = live.find(p => el >= p.a && el < p.b);
+  const segs = live.map(p => `<i class="tseg${el >= p.b ? ' past' : el >= p.a ? ' on' : ''}" style="flex:${p.b - p.a}"></i>`).join('');
   let lbl;
-  if (cur) { const nxt = tl[cur.k + 1]; lbl = `<span><b>${esc(cur.n)}</b> · ${Math.ceil(cur.end - el)} min left${nxt ? ' → ' + esc(nxt[0]) : ''}</span>`; }
-  else lbl = `<span><b>Over plan</b> by ${Math.floor(el - total)} min</span>`;
-  return `<div class="tlbar">${segs}<span class="tmark" style="left:${Math.min(100, el / total * 100)}%"></span></div><div class="tllbl">${lbl}${range}</div>`;
+  if (cur) { const nxt = live[live.indexOf(cur) + 1]; lbl = `<span><b>${esc(cur.name)}</b> · ${Math.ceil(cur.b - el)} min left${nxt ? ' → ' + esc(nxt.name) : ''} ›</span>`; }
+  else lbl = `<span><b>Over plan</b> by ${Math.floor(el - total)} min ›</span>`;
+  const left = total > 0 ? Math.min(100, el / total * 100) : 100;
+  return `<div class="tlbar">${segs}<span class="tmark" style="left:${left}%"></span></div>
+    <div class="tllbl">${lbl}<span>${clockOf(c.start)}–${clockOf(c.start + total * 60000)}</span></div>`;
 }
 
 /* ===== 6. HISTORY & PROGRESS ===== */
@@ -689,6 +710,10 @@ function renderSettings() {
     <div class="row"><span>Program start</span><input type="date" data-change="startDate" value="${st.startDate || ''}" style="width:auto"></div>
     <div class="row"><button class="btn inline" data-act="startProgram">Start today</button><button class="btn inline" data-act="clearStart">Clear</button></div>
   </section>
+  <section class="card"><h3>⏱ Session timeline</h3>
+    <p class="muted small">Total <b>${fmtDur(planTotal())}</b>. Used for sessions you haven't started yet.</p>
+    ${PHASES.map(([id, n]) => `<div class="row"><span>${n}</span><div class="stepper"><button class="round" data-act="phStep" data-id="${id}" data-d="-1" aria-label="Shorter">−</button><b>${st.phases[id]} min</b><button class="round" data-act="phStep" data-id="${id}" data-d="1" aria-label="Longer">+</button></div></div>`).join('')}
+    <div class="row"><button class="btn inline" data-act="phReset">Reset to default (1 h 15 min)</button></div></section>
   <section class="card"><button class="btn" data-act="planOpen">✏️ Edit workout plan</button></section>
   <section class="card"><h3>📊 Export for tracking</h3>
     <p class="muted small">Spreadsheet files (CSV) that open in Numbers, Excel or Google Sheets. One row per set, so you can filter and chart your progress.</p>
@@ -730,6 +755,18 @@ const SHEETS = {
       `<button class="btn primary" data-act="closeSheet">Done</button>`;
   },
   plan: planSheet,
+  phases() {
+    const c = S.current; if (!c) return '';
+    const L = phaseLayout(c), el = elapsedMin(c);
+    return `<h2>Session timeline</h2><p class="muted small" style="margin:0">Skip a part to move straight on — the rest of the plan shifts earlier. Default lengths are in Settings.</p>` +
+      L.map(p => {
+        const state = p.skipped ? 'Skipped' : !c.start ? 'Planned' : el >= p.b ? 'Done' : el >= p.a ? 'Now' : 'Up next';
+        const time = c.start && p.b > p.a ? `${clockOf(c.start + p.a * 60000)}–${clockOf(c.start + p.b * 60000)}` : `${p.m} min`;
+        const btn = p.skipped ? `<button class="btn inline" data-act="phUndo" data-k="${p.k}">Undo</button>`
+          : (c.start && el >= p.b) ? '' : `<button class="btn inline" data-act="phSkip" data-k="${p.k}">Skip</button>`;
+        return `<div class="row"><span><b>${esc(p.name)}</b><br><small class="muted">${state} · ${time}</small></span>${btn}</div>`;
+      }).join('') + `<button class="btn primary" data-act="closeSheet">Done</button>`;
+  },
   hist() {
     const h = S.history.find(x => x.id === ui.histId); if (!h) return '';
     return `<h2>${esc(nm(h.name))}</h2><p class="muted" style="margin:0">${fmtDate(h.date)}${dur(h) ? ' · ' + dur(h) : ''}</p>` +
@@ -781,7 +818,7 @@ function renderHeader() {
     const d = doneCount(c), n = totalCount(c);
     h.innerHTML = `<div class="hrow"><button class="home" data-act="goHome" aria-label="Home">‹ Home</button>
       <span class="sname">${esc(nm(c.name))}</span><span id="clock" class="clock">${elapsed(c)}</span></div>
-      <div id="tl">${timelineHTML(c)}</div>
+      <div id="tl" data-act="tlOpen" role="button" aria-label="Session timeline: skip or view parts">${timelineHTML(c)}</div>
       <div class="prog"><i style="width:${n ? 100 * d / n : 0}%"></i></div><div class="hsub">${d}/${n} sets done</div>`;
   } else {
     const title = { workout:'Gymie', history:'History', inbody:'InBody', settings:'Settings' }[ui.tab];
@@ -794,7 +831,8 @@ function renderAction() {   // big thumb button: always does the next thing
   b.hidden = false;
   if (!c.start) {
     b.dataset.act = 'startWorkout';
-    b.innerHTML = `<span>▶ Start workout</span><span class="a2">Starts the timer · plan ends in 1 h 15 min</span>`;
+    const L = phaseLayout(c), total = L.length ? L[L.length - 1].b : 0;
+    b.innerHTML = `<span>▶ Start workout</span><span class="a2">Starts the timer · plan ${fmtDur(total)}</span>`;
     return;
   }
   const cur = currentPos(c);
@@ -858,7 +896,19 @@ function shareFile(name, text) {
 /* ===== 13. ACTIONS ===== */
 const ACT = {
   tab(d) { ui.tab = d.v; if (d.v === 'workout' && !ui.view) ui.view = null; ui.sheet = null; drawSheet(); window.scrollTo(0, 0); render(); },
-  startWorkout() { const c = S.current; if (!c) return; c.start = c.start || Date.now(); c.lastTs = Date.now(); save(); render(); },
+  startWorkout() { const c = S.current; if (!c) return; phaseLayout(c); c.start = c.start || Date.now(); c.lastTs = Date.now(); save(); render(); },
+  tlOpen() { openSheet('phases'); },
+  phSkip(d) {
+    const c = S.current, k = +d.k, p = phaseLayout(c)[k], el = elapsedMin(c);
+    c.cut[k] = (c.start && el >= p.a && el < p.b) ? el : -1;   // current part ends now; a later part is dropped
+    save(); render(); drawSheet();
+  },
+  phUndo(d) { const c = S.current; delete c.cut[+d.k]; save(); render(); drawSheet(); },
+  phStep(d) {
+    const ph = S.settings.phases; ph[d.id] = Math.min(180, Math.max(0, (ph[d.id] || 0) + (+d.d)));
+    save(); render();
+  },
+  phReset() { S.settings.phases = { ...DEFAULT_PHASES }; save(); render(); },
   goHome() { ui.view = 'home'; window.scrollTo(0, 0); render(); },
   resume() { ui.view = 'session'; window.scrollTo(0, 0); render(); },
   pickSession(d) {
