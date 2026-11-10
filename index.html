@@ -95,6 +95,17 @@ input{font:inherit;font-size:16px;width:100%;border:1.5px solid var(--line);bord
 details.cue{margin-top:6px}
 summary{min-height:44px;display:flex;align-items:center;color:var(--accent);font-weight:600;cursor:pointer;list-style:none}
 summary::-webkit-details-marker{display:none}
+.fig{margin:4px 0 6px;padding:8px;background:var(--bg);border-radius:12px}
+.fig svg{width:100%;max-width:360px;height:auto;display:block;margin:0 auto}
+.fig .bd{fill:none;stroke:var(--ink);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.fig .hd{fill:var(--ink)}
+.fig .eq{fill:var(--soft);stroke:var(--ink2);stroke-width:1.5}
+.fig .eqa{fill:var(--accent)}
+.fig .br{stroke:var(--accent);stroke-width:4;stroke-linecap:round}
+.fig .cb{stroke:var(--ink2);stroke-width:1.5;stroke-dasharray:3 2}
+.fig .fl{stroke:var(--line);stroke-width:2}
+.fig .ar{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.fig p{margin:6px 0 0;font-size:13px;color:var(--ink2);text-align:center}
 summary::before{content:"▸";margin-right:6px} details[open]>summary::before{content:"▾"}
 
 /* Controls */
@@ -196,17 +207,17 @@ const DEFAULT_PLAN = {
     rdl:     { name:'Dumbbell RDL', kind:'weight', perHand:true, start:6, step:1, cue:'Push hips back, knees slightly bent.' },
     thrust:  { name:'Hip Thrust', kind:'weight', start:20, step:1, cue:"Squeeze glutes at the top, don't arch your lower back." },
     abd:     { name:'Hip Abduction', kind:'weight', start:15, step:1, cue:'Open slowly, no momentum.' },
-    bridge:  { name:'Glute Bridge Hold', kind:'time' },
-    lat:     { name:'Lat Pulldown', kind:'weight', start:10, step:1 },
-    row:     { name:'Seated Cable Row', kind:'weight', start:10, step:1 },
-    face:    { name:'Face Pull', kind:'weight', start:5, step:1 },
-    sapd:    { name:'Straight Arm Pulldown', kind:'weight', start:5, step:1 },
-    deadbug: { name:'Dead Bug', kind:'bw', perSide:true },
-    revcr:   { name:'Reverse Crunch', kind:'bw' },
-    frog:    { name:'Frog Pump', kind:'bw' },
-    plank:   { name:'Plank', kind:'time' },
-    heel:    { name:'Heel Taps', kind:'bw', perSide:true },
-    yoga:    { name:'Stretching / Yoga', kind:'time', unit:'min' }
+    bridge:  { name:'Glute Bridge Hold', kind:'time', cue:'Squeeze glutes at the top, keep ribs down.' },
+    lat:     { name:'Lat Pulldown', kind:'weight', start:10, step:1, cue:'Pull to upper chest, elbows down and back.' },
+    row:     { name:'Seated Cable Row', kind:'weight', start:10, step:1, cue:'Chest tall, squeeze shoulder blades together.' },
+    face:    { name:'Face Pull', kind:'weight', start:5, step:1, cue:'Pull towards your face, elbows high.' },
+    sapd:    { name:'Straight Arm Pulldown', kind:'weight', start:5, step:1, cue:'Keep arms straight, move from the shoulders.' },
+    deadbug: { name:'Dead Bug', kind:'bw', perSide:true, cue:'Keep lower back pressed into the floor, move slowly.' },
+    revcr:   { name:'Reverse Crunch', kind:'bw', cue:'Curl hips up using your abs, no swinging.' },
+    frog:    { name:'Frog Pump', kind:'bw', cue:'Soles together, knees out, squeeze glutes at the top.' },
+    plank:   { name:'Plank', kind:'time', cue:'Straight line head to heels, squeeze glutes.' },
+    heel:    { name:'Heel Taps', kind:'bw', perSide:true, cue:'Shoulders off the floor, reach side to side.' },
+    yoga:    { name:'Stretching / Yoga', kind:'time', unit:'min', cue:'Gentle stretches for hips, hamstrings and back.' }
   },
   sessions: {
     glA: { name:'Glute A', sub:'RDL · Hip Thrust · Abduction', treadmill:true, items:[
@@ -231,10 +242,8 @@ const DEFAULT_PLAN = {
     { name:'Cool-down',    min:'5',    setting:'Incline 0 · Speed 4.5' }
   ],
   walkCue: 'Short, even steps. Land softly on the heel, roll through mid-foot to toes. No need to hold the rails.',
-  timeline: [
-    ['08:00','08:07','Warm-up'], ['08:07','08:42','Weights'], ['08:42','09:02','Treadmill'],
-    ['09:02','09:07','Stretch & rest'], ['09:07','09:15','Wrap up']
-  ],
+  // Session timeline: [phase, minutes]. Starts when you tap "Start workout" (total 1 h 15 min).
+  timeline: [ ['Warm-up', 7], ['Weights', 35], ['Treadmill', 20], ['Stretch & rest', 5], ['Wrap up', 8] ],
   tips: [
     "Don't train to failure — keep 2–3 reps in reserve.",
     'Increase weight only after completing all reps with good form.'
@@ -252,6 +261,71 @@ const IB_FIELDS = [
   ['weight', 'Weight', 'kg'], ['smm', 'Skeletal muscle', 'kg'], ['bfm', 'Body fat mass', 'kg'],
   ['pbf', 'Body fat', '%'], ['bmi', 'BMI', ''], ['vfl', 'Visceral fat lvl', ''], ['score', 'InBody score', '']
 ];
+
+/* Exercise hint drawings (side view unless noted). Each frame: h = head [x,y], b = body lines,
+   e = equipment behind the body, f = equipment in front. Frame size 120×100, floor at y=92. */
+const EQ = {
+  db:    (x, y) => `<rect class="eqa" x="${x - 8}" y="${y - 3}" width="16" height="6" rx="3"/>`,
+  plate: (x, y) => `<circle class="eqa" cx="${x}" cy="${y}" r="8"/>`,
+  box:   (x, y, w, h) => `<rect class="eq" x="${x}" y="${y}" width="${w}" height="${h}" rx="3"/>`,
+  bar:   (x1, x2, y) => `<line class="br" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"/>`,
+  cable: (x1, y1, x2, y2) => `<line class="cb" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`
+};
+const LYING = { h:[12,82], arm:[24,88,44,90] };
+const FIGS = {
+  rdl: { cap:'Push hips back, slight knee bend, flat back', frames:[
+    { h:[60,14], b:[[60,24,60,56],[60,26,64,42,67,57],[60,56,61,74,60,91,68,91]], f:[['db',67,60]] },
+    { h:[82,32], b:[[44,54,74,40],[74,42,74,58,74,72],[44,54,52,73,52,91,60,91]], f:[['db',74,74]] } ] },
+  thrust: { cap:'Upper back on bench, drive hips up, chin tucked', frames:[
+    { h:[20,44], e:[['box',4,54,30,38]], b:[[28,52,50,78],[30,54,40,66,50,72],[50,78,74,60,80,91,88,91]], f:[['plate',50,72]] },
+    { h:[20,44], e:[['box',4,54,30,38]], b:[[28,52,58,50],[30,54,44,52,56,46],[58,50,80,52,82,91,90,91]], f:[['plate',58,44]] } ] },
+  abd: { cap:'Front view: sit tall, push knees out slowly, control back in', frames:[
+    { h:[60,14], e:[['box',38,52,44,8],['box',42,64,6,14],['box',72,64,6,14]],
+      b:[[60,22,60,54],[48,28,72,28],[48,28,46,44,46,56],[72,28,74,44,74,56],[54,56,54,74,54,91],[66,56,66,74,66,91]] },
+    { h:[60,14], e:[['box',38,52,44,8],['box',30,62,6,14],['box',84,62,6,14]],
+      b:[[60,22,60,54],[48,28,72,28],[48,28,46,44,46,56],[72,28,74,44,74,56],[54,56,40,72,34,91],[66,56,80,72,86,91]] } ] },
+  bridge: { cap:'Lift hips, squeeze glutes and hold', frames:[
+    { h:LYING.h, b:[[22,86,54,88],LYING.arm,[54,88,74,68,84,91,92,91]] },
+    { h:LYING.h, b:[[22,86,56,64],LYING.arm,[56,64,78,60,84,91,92,91]] } ] },
+  lat: { cap:'Pull bar to upper chest, elbows down, slight lean back', frames:[
+    { h:[54,24], e:[['box',40,66,34,8],['cable',60,0,60,6]], b:[[54,34,52,64],[54,36,58,20,60,6],[52,64,76,64,78,91,84,91]], f:[['box',66,56,16,6],['bar',40,80,6]] },
+    { h:[48,24], e:[['box',40,66,34,8],['cable',62,0,62,36]], b:[[50,34,52,64],[50,36,44,52,62,36],[52,64,76,64,78,91,84,91]], f:[['box',66,56,16,6],['bar',44,82,36]] } ] },
+  row: { cap:'Chest up, pull handle to belly, squeeze shoulder blades', frames:[
+    { h:[54,38], e:[['box',20,70,40,8],['box',86,60,6,32],['cable',86,54,118,54]], b:[[50,46,40,70],[50,48,66,52,82,54],[40,70,64,62,86,72]], f:[['db',84,54]] },
+    { h:[40,36], e:[['box',20,70,40,8],['box',86,60,6,32],['cable',56,58,118,54]], b:[[40,46,40,70],[40,48,26,58,52,58],[40,70,64,62,86,72]], f:[['db',54,58]] } ] },
+  face: { cap:'Pull rope to your face, elbows high and wide', frames:[
+    { h:[46,14], e:[['cable',92,22,118,20]], b:[[46,24,46,56],[46,26,66,24,86,22],[46,56,44,74,46,91,54,91]], f:[['db',88,22]] },
+    { h:[46,14], e:[['cable',58,16,118,20]], b:[[46,24,46,56],[46,26,30,22,56,16],[46,56,44,74,46,91,54,91]], f:[['db',58,16]] } ] },
+  sapd: { cap:'Arms straight, sweep the bar down to your thighs', frames:[
+    { h:[50,18], e:[['cable',84,8,116,0]], b:[[48,28,40,58],[48,30,64,20,80,10],[40,58,44,75,42,91,50,91]], f:[['db',81,9]] },
+    { h:[50,18], e:[['cable',60,60,116,0]], b:[[48,28,40,58],[48,30,54,46,56,60],[40,58,44,75,42,91,50,91]], f:[['db',57,62]] } ] },
+  deadbug: { cap:'Back flat on floor, extend opposite arm and leg', frames:[
+    { h:LYING.h, b:[[22,86,54,86],[24,86,26,70,28,54],[54,86,56,64,78,64]] },
+    { h:LYING.h, b:[[22,86,54,86],[24,86,26,70,28,54],[24,86,14,72,4,62],[54,86,56,64,78,64],[54,86,78,80,102,82]] } ] },
+  revcr: { cap:'Curl hips off the floor, knees to chest, lower slowly', frames:[
+    { h:LYING.h, b:[[22,86,54,86],LYING.arm,[54,86,56,64,78,64]] },
+    { h:LYING.h, b:[[22,86,50,80],LYING.arm,[50,80,42,56,62,48]] } ] },
+  frog: { cap:'Soles together, knees out, pump hips up', frames:[
+    { h:[14,82], b:[[24,86,52,88],[26,88,46,90],[52,88,64,70,70,91]] },
+    { h:[14,82], b:[[24,86,54,70],[26,88,46,90],[54,70,66,64,70,91]] } ] },
+  plank: { cap:'Forearms under shoulders, body in one straight line', frames:[
+    { h:[94,57], b:[[86,64,50,75],[50,75,30,81,10,88],[86,64,86,90,102,90]] } ] },
+  heel: { cap:'Shoulders lifted, tap left heel, then right', frames:[
+    { h:[16,72], b:[[24,78,56,88],[26,80,46,84,64,86],[56,88,72,66,86,91]] } ] }
+};
+function figHTML(id) {
+  const f = FIGS[id]; if (!f) return '';
+  const n = f.frames.length, W = 120 * n + 24 * (n - 1), pts = a => a.reduce((s, v, i) => s + (i % 2 ? ',' : ' ') + v, '').trim();
+  let s = `<svg viewBox="0 0 ${W} 100" style="max-width:${Math.round(W * 1.35)}px" role="img" aria-label="${esc(f.cap)}"><line class="fl" x1="0" y1="93" x2="${W}" y2="93"/>`;
+  f.frames.forEach((fr, k) => {
+    const ox = k * 144;
+    s += `<g transform="translate(${ox},0)">` + (fr.e || []).map(e => EQ[e[0]](...e.slice(1))).join('') +
+      fr.b.map(l => `<polyline class="bd" points="${pts(l)}"/>`).join('') +
+      `<circle class="hd" cx="${fr.h[0]}" cy="${fr.h[1]}" r="7"/>` + (fr.f || []).map(e => EQ[e[0]](...e.slice(1))).join('') + `</g>`;
+    if (k < n - 1) s += `<path class="ar" d="M${ox + 124} 50 h16 m-6 -6 l6 6 l-6 6"/>`;
+  });
+  return `<div class="fig">${s}</svg><p>${esc(f.cap)}</p></div>`;
+}
 
 /* ===== 2. STORAGE ===== */
 // Workout data → localStorage (saved on every tap). InBody photos → IndexedDB (too big for localStorage).
@@ -468,8 +542,8 @@ function exCard(x, i, cur) {
         <span class="setval">${setVal(x, s)}</span></button>
       <button class="edit" data-act="editSet" data-i="${i}" data-s="${j}" aria-label="Edit set">✎</button></div>`;
   }).join('');
-  const cue = P().exercises[x.ex]?.cue;
-  if (cue) h += `<details class="cue" data-cue="${i}"${ui.cues.has(i) ? ' open' : ''}><summary>Form cue</summary><p>${esc(cue)}</p></details>`;
+  const cue = P().exercises[x.ex]?.cue || DEFAULT_PLAN.exercises[x.ex]?.cue, fig = figHTML(x.ex);
+  if (cue || fig) h += `<details class="cue" data-cue="${i}"${ui.cues.has(i) ? ' open' : ''}><summary>Form cue</summary>${fig}${cue ? `<p>${esc(cue)}</p>` : ''}</details>`;
   return h + '</section>';
 }
 function treadmillCard(c) {
@@ -481,25 +555,25 @@ function treadmillCard(c) {
         <span><b>${esc(ph.name)}</b> · ${esc(ph.min)} min<br><small class="muted">${esc(ph.setting)}</small></span></button>`; }).join('') +
     `<p class="muted small">${esc(p.walkCue)}</p></section>`;
 }
-/* Morning timeline bar (header): where you are in the 8:00–9:15 plan right now */
-function timelineHTML() {
-  const tl = P().timeline; if (!tl || !tl.length) return '';
-  const a = toMin(tl[0][0]), b = toMin(tl[tl.length - 1][1]);
-  const d = new Date(), now = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
-  let lbl, right = '';
-  const segs = tl.map(([s, e]) => {
-    const cls = now >= toMin(e) ? ' past' : now >= toMin(s) ? ' on' : '';
-    return `<i class="tseg${cls}" style="flex:${toMin(e) - toMin(s)}"></i>`;
+/* Session timeline bar (header): starts when you tap "Start workout", planned end = start + 1 h 15 min */
+function timelineHTML(c) {
+  const tl = DEFAULT_PLAN.timeline, total = tl.reduce((a, p) => a + p[1], 0);
+  const clock = ms => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  if (!c || !c.start) {
+    return `<div class="tlbar">${tl.map(p => `<i class="tseg" style="flex:${p[1]}"></i>`).join('')}</div>
+      <div class="tllbl"><span>Not started · tap <b>Start workout</b></span><span>Plan ${Math.floor(total / 60)} h ${total % 60} min</span></div>`;
+  }
+  const el = (Date.now() - c.start) / 60000; let acc = 0, cur = null;
+  const segs = tl.map(([n, m], k) => {
+    const a = acc; acc += m;
+    if (el >= a && el < acc) cur = { n, end: acc, k };
+    return `<i class="tseg${el >= acc ? ' past' : el >= a ? ' on' : ''}" style="flex:${m}"></i>`;
   }).join('');
-  const curPh = tl.find(([s, e]) => now >= toMin(s) && now < toMin(e));
-  if (curPh) {
-    const left = Math.ceil(toMin(curPh[1]) - now), nxt = tl[tl.indexOf(curPh) + 1];
-    lbl = `<span><b>${esc(curPh[2])}</b> until ${curPh[1]}</span>`;
-    right = `<span><b>${left} min</b> left${nxt ? ' · then ' + esc(nxt[2]) : ''}</span>`;
-  } else if (now < a) { lbl = `<span>Plan starts ${tl[0][0]}</span>`; right = `<span>in ${Math.ceil(a - now)} min</span>`; }
-  else { lbl = `<span>Plan ${tl[0][0]}–${tl[tl.length - 1][1]}</span>`; right = `<span>outside planned time</span>`; }
-  const mark = now >= a && now <= b ? `<span class="tmark" style="left:${(now - a) / (b - a) * 100}%"></span>` : '';
-  return `<div class="tlbar">${segs}${mark}</div><div class="tllbl">${lbl}${right}</div>`;
+  const range = `<span>${clock(c.start)}–${clock(c.start + total * 60000)}</span>`;
+  let lbl;
+  if (cur) { const nxt = tl[cur.k + 1]; lbl = `<span><b>${esc(cur.n)}</b> · ${Math.ceil(cur.end - el)} min left${nxt ? ' → ' + esc(nxt[0]) : ''}</span>`; }
+  else lbl = `<span><b>Over plan</b> by ${Math.floor(el - total)} min</span>`;
+  return `<div class="tlbar">${segs}<span class="tmark" style="left:${Math.min(100, el / total * 100)}%"></span></div><div class="tllbl">${lbl}${range}</div>`;
 }
 
 /* ===== 6. HISTORY & PROGRESS ===== */
@@ -707,7 +781,7 @@ function renderHeader() {
     const d = doneCount(c), n = totalCount(c);
     h.innerHTML = `<div class="hrow"><button class="home" data-act="goHome" aria-label="Home">‹ Home</button>
       <span class="sname">${esc(nm(c.name))}</span><span id="clock" class="clock">${elapsed(c)}</span></div>
-      <div id="tl">${timelineHTML()}</div>
+      <div id="tl">${timelineHTML(c)}</div>
       <div class="prog"><i style="width:${n ? 100 * d / n : 0}%"></i></div><div class="hsub">${d}/${n} sets done</div>`;
   } else {
     const title = { workout:'Gymie', history:'History', inbody:'InBody', settings:'Settings' }[ui.tab];
@@ -718,6 +792,11 @@ function renderAction() {   // big thumb button: always does the next thing
   const b = $('#action'), c = S.current;
   if (ui.tab !== 'workout' || ui.view !== 'session' || !c) { b.hidden = true; return; }
   b.hidden = false;
+  if (!c.start) {
+    b.dataset.act = 'startWorkout';
+    b.innerHTML = `<span>▶ Start workout</span><span class="a2">Starts the timer · plan ends in 1 h 15 min</span>`;
+    return;
+  }
   const cur = currentPos(c);
   if (cur) {
     const x = c.ex[cur.i], s = x.sets[cur.s];
@@ -779,6 +858,7 @@ function shareFile(name, text) {
 /* ===== 13. ACTIONS ===== */
 const ACT = {
   tab(d) { ui.tab = d.v; if (d.v === 'workout' && !ui.view) ui.view = null; ui.sheet = null; drawSheet(); window.scrollTo(0, 0); render(); },
+  startWorkout() { const c = S.current; if (!c) return; c.start = c.start || Date.now(); c.lastTs = Date.now(); save(); render(); },
   goHome() { ui.view = 'home'; window.scrollTo(0, 0); render(); },
   resume() { ui.view = 'session'; window.scrollTo(0, 0); render(); },
   pickSession(d) {
@@ -939,7 +1019,7 @@ render();
 makeIcon();
 setInterval(() => {
   const c = $('#clock'); if (c && S.current) c.textContent = elapsed(S.current);
-  const tl = $('#tl'); if (tl) tl.innerHTML = timelineHTML();
+  const tl = $('#tl'); if (tl) tl.innerHTML = timelineHTML(S.current);
   tickRest();
 }, 1000);
 </script>
