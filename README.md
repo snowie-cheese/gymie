@@ -4,8 +4,8 @@ A single-file workout tracker (`index.html`) for iPhone Safari. It has no depend
 
 - Opens straight to today's session. Tap a set to check it off, and use +/− to change the weight.
 - Remembers your last weight for each exercise and suggests when to increase it.
-- Includes a rest timer, treadmill steps, history, a progress chart, a 4-week program tracker and a week-4 check-in.
-- Data stays in your browser's localStorage. Use **Settings → Export data** to make backups.
+- Includes a home screen to pick any session, a live 8:00–9:15 timeline bar, a rest timer, treadmill steps, history, progress charts, a daily streak and an InBody log with photos.
+- All data (including InBody photos) stays on your phone. Settings can export CSV files for Numbers, Excel or Google Sheets.
 
 ## Use on iPhone
 1. Enable GitHub Pages (Settings → Pages → Deploy from branch `main`, folder `/root`).
