@@ -255,6 +255,7 @@ const DEFAULT_PLAN = {
     'Assess strength, glute measurements, thigh feel, energy.'
   ]
 };
+const APP_VERSION = '2026-11-10.4';   // bump on every update so you can see which version your phone runs
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 /* Session timeline phases. Durations (minutes) are editable in Settings; default total 1 h 15 min.
    The timeline starts when you tap "Start workout". */
@@ -722,7 +723,8 @@ function renderSettings() {
   ${navigator.standalone ? '' : `<section class="card small">📱 In Safari tap <b>Share → Add to Home Screen</b>. It opens full-screen and Safari keeps your data.</section>`}
   <section class="card small muted">🔒 Your workouts, weights and InBody photos are stored only on this phone. Nothing is uploaded.</section>
   <section class="card"><button class="btn danger" data-act="resetAll">Reset all data</button></section>
-  <p class="muted small center">Gymie · data v${S.version}</p>`;
+  <section class="card"><button class="btn" data-act="checkUpdate">🔄 Check for updates</button>
+    <p class="muted small center" style="margin-bottom:0">App version ${APP_VERSION} · data v${S.version}</p></section>`;
 }
 function planSheet() {
   const p = P();
@@ -898,6 +900,15 @@ const ACT = {
   tab(d) { ui.tab = d.v; if (d.v === 'workout' && !ui.view) ui.view = null; ui.sheet = null; drawSheet(); window.scrollTo(0, 0); render(); },
   startWorkout() { const c = S.current; if (!c) return; phaseLayout(c); c.start = c.start || Date.now(); c.lastTs = Date.now(); save(); render(); },
   tlOpen() { openSheet('phases'); },
+  async checkUpdate() {   // bypass the phone's cache and load the newest file (your data is kept)
+    toast('Checking…');
+    try {
+      const html = await (await fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' })).text();
+      const m = html.match(/APP_VERSION = '([^']+)'/), latest = m && m[1];
+      if (latest && latest === APP_VERSION) return toast('You have the latest version ✓');
+      location.replace(location.pathname + '?v=' + Date.now());
+    } catch (e) { toast('No connection — try again later'); }
+  },
   phSkip(d) {
     const c = S.current, k = +d.k, p = phaseLayout(c)[k], el = elapsedMin(c);
     c.cut[k] = (c.start && el >= p.a && el < p.b) ? el : -1;   // current part ends now; a later part is dropped
