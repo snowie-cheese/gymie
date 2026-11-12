@@ -137,6 +137,22 @@ summary::before{content:"▸";margin-right:6px} details[open]>summary::before{co
 .cd small{display:block;font-size:11px;font-weight:600;color:var(--ink2)}
 .tbtn{width:52px;min-height:58px;flex:none;border:2px solid var(--accent);border-radius:14px;background:var(--surface);color:var(--accent);font-size:18px;font-weight:700;padding:0}
 .tbtn.run{background:var(--accent);color:var(--accent-ink)}
+/* Set rows with inline −/+ for weight and reps */
+.set{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;border:2px solid var(--line);border-radius:14px;background:var(--surface)}
+.set.is-cur{border:3px solid var(--accent)}
+.set.is-done{background:var(--soft);border-color:transparent}
+.set .chk{width:46px;height:46px;font-size:18px;background:var(--surface);padding:0}
+.set.is-cur .chk{border-color:var(--accent);color:var(--accent)}
+.set.is-done .chk{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.vals{flex:1;display:flex;justify-content:flex-end;align-items:center;gap:10px;min-width:0}
+.mini{display:flex;align-items:center;gap:3px}
+.mini b{min-width:42px;text-align:center;font-size:18px;font-variant-numeric:tabular-nums;line-height:1.05}
+.mini b small{display:block;font-size:10px;font-weight:600;color:var(--ink2)}
+.mb{width:34px;height:42px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--accent);font-size:20px;font-weight:700;padding:0}
+.set.is-done .mb{opacity:.55}
+.set .tbtn{width:46px;min-height:46px}
+textarea{font:inherit;font-size:16px;width:100%;min-height:80px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface);color:var(--ink);resize:vertical;margin-top:4px}
+.notepre{font-size:14px;color:var(--ink2);white-space:pre-wrap;background:var(--soft);border-radius:10px;padding:8px 10px}
 .stepper.sm{gap:6px}
 .stepper.sm .round{width:40px;height:40px;font-size:22px;border-width:1.5px}
 .stepper.sm b{min-width:60px;font-size:17px}
@@ -268,7 +284,7 @@ const DEFAULT_PLAN = {
     'Assess strength, glute measurements, thigh feel, energy.'
   ]
 };
-const APP_VERSION = '2026-11-12.3';   // bump on every update so you can see which version your phone runs
+const APP_VERSION = '2026-11-12.4';   // bump on every update so you can see which version your phone runs
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 /* Session timeline phases. Durations (minutes) are editable in Settings; default total 1 h 15 min.
    The timeline starts when you tap "Start workout". */
@@ -535,7 +551,7 @@ function weekCard() {
     `<span>🔥 Streak <b>${st}</b> day${st === 1 ? '' : 's'}</span></div></section>`;
 }
 /* A session counts as "in progress" only after Start workout (or if something was already logged) */
-const isActive = c => !!c && !!(c.start || doneCount(c) || c.tm.some(Boolean));
+const isActive = c => !!c && !!(c.start || doneCount(c) || c.tm.some(Boolean) || (c.note || '').trim());
 function renderHome() {
   const p = P(), tsid = todaySid(), c = isActive(S.current) ? S.current : null;
   const doneToday = S.history.filter(h => h.date === dkey());
@@ -559,8 +575,18 @@ function renderHome() {
 /* ===== 5. SESSION ===== */
 function renderSession() {
   const c = S.current, cur = currentPos(c);
+  // Form cue follows the ongoing exercise: opens when the workout starts / the next exercise begins,
+  // and the previous one closes. Other cues stay as you left them (collapsed by default).
+  const want = c.start && cur ? cur.i : null;
+  if (ui.cueAuto !== want) {
+    if (ui.cueAuto != null) ui.cues.delete(ui.cueAuto);
+    if (want != null) ui.cues.add(want);
+    ui.cueAuto = want;
+  }
   return c.ex.map((x, i) => exCard(x, i, cur)).join('') + treadmillCard(c) +
-    `<section class="card" id="fin"><button class="btn primary" data-act="finish">🏁 Finish session</button></section>`;
+    `<section class="card" id="fin"><label class="small muted">📝 Session note
+      <textarea data-input="snote" rows="3" placeholder="How did it go? Anything to remember next time…">${esc(c.note || '')}</textarea></label>
+      <div style="height:10px"></div><button class="btn primary" data-act="finish">🏁 Finish session</button></section>`;
 }
 function exCard(x, i, cur) {
   const done = x.sets.every(s => s.done), isCur = cur && cur.i === i, open = !done || ui.expanded.has(i);
@@ -581,12 +607,15 @@ function exCard(x, i, cur) {
     const c = isCur && cur.s === j, run = T && T.type === 'hold' && T.i === i && T.s === j;
     const tb = x.kind === 'time' && !s.done   // hold exercises get a countdown button
       ? `<button class="tbtn${run ? ' run' : ''}" data-act="${run ? 'stopTimer' : 'startHold'}" data-i="${i}" data-s="${j}" aria-label="${run ? 'Stop timer' : 'Start timer'}">${run ? '■' : '▶'}</button>` : '';
+    // Inline −/+ for this set's weight and reps (or seconds). The round number on the left ticks the set done.
+    const mini = (act, val, unit, what) => `<div class="mini"><button class="mb" data-act="${act}" data-i="${i}" data-s="${j}" data-d="-1" aria-label="Less ${what}">−</button>` +
+      `<b>${val}<small>${unit}</small></b><button class="mb" data-act="${act}" data-i="${i}" data-s="${j}" data-d="1" aria-label="More ${what}">+</button></div>`;
+    const wPart = x.kind === 'weight' ? mini('sw', num(s.w), x.perHand ? 'kg/hand' : 'kg', 'weight') : '';
+    const rPart = run ? `<b class="cd" data-cd>${mmss(timerLeft(S.current))}</b>`
+      : mini('sr', s.r, x.kind === 'time' ? (x.unit === 'min' ? 'min' : 'sec') : (x.perSide ? 'reps/side' : 'reps'), x.kind === 'time' ? 'time' : 'reps');
     return `<div class="set${s.done ? ' is-done' : ''}${c ? ' is-cur' : ''}" id="s${i}-${j}">
-      <button class="setmain" data-act="toggleSet" data-i="${i}" data-s="${j}" aria-pressed="${s.done}">
-        <span class="chk">${s.done ? '✓' : j + 1}</span>
-        <span class="setlbl">${c ? '<em>NOW</em>' : ''}Set ${j + 1}</span>
-        <span class="setval">${run ? `<span class="cd" data-cd>${mmss(timerLeft(S.current))}</span>` : setVal(x, s)}</span></button>
-      ${tb}<button class="edit" data-act="editSet" data-i="${i}" data-s="${j}" aria-label="Edit set">✎</button></div>`;
+      <button class="chk" data-act="toggleSet" data-i="${i}" data-s="${j}" aria-pressed="${s.done}" aria-label="Set ${j + 1} done">${s.done ? '✓' : j + 1}</button>
+      <div class="vals">${wPart}${rPart}</div>${tb}</div>`;
   }).join('');
   const cue = P().exercises[x.ex]?.cue || DEFAULT_PLAN.exercises[x.ex]?.cue, fig = figHTML(x.ex);
   if (cue || fig) h += `<details class="cue" data-cue="${i}"${ui.cues.has(i) ? ' open' : ''}><summary>Form cue</summary>${fig}${cue ? `<p>${esc(cue)}</p>` : ''}</details>`;
@@ -652,7 +681,7 @@ function renderHistory() {
   if (ui.hseg === 'progress') return h + progressView();
   if (!S.history.length) return h + `<section class="card center muted">No sessions yet. Finished workouts show up here.</section>`;
   return h + S.history.map(x => `<button class="card hist" data-act="histOpen" data-id="${x.id}">
-    <div><b>${fmtDate(x.date)}</b><br>${esc(nm(x.name))}</div>
+    <div><b>${fmtDate(x.date)}</b><br>${esc(nm(x.name))}${x.note ? ' <span title="Has a note">📝</span>' : ''}</div>
     <span>${doneCount(x)}/${totalCount(x)} sets${dur(x) ? '<br>' + dur(x) : ''}</span></button>`).join('');
 }
 function series(exId) {
@@ -753,9 +782,7 @@ function renderSettings() {
   const st = S.settings;
   return `<section class="card">
     <div class="row"><span>Rest timer</span><div class="stepper sm"><button class="round" data-act="restStep" data-d="-1">−</button><b>${mmss(st.rest)}</b><button class="round" data-act="restStep" data-d="1">+</button></div></div>
-    <div class="row"><span>Program start</span><input type="date" data-change="startDate" value="${st.startDate || ''}" style="width:auto"></div>
-    <div class="row"><button class="btn inline" data-act="startProgram">Start today</button><button class="btn inline" data-act="clearStart">Clear</button></div>
-  </section>
+    <div class="row"><span>Program start</span><input type="date" data-change="startDate" value="${st.startDate || ''}" style="width:auto"></div>  </section>
   <section class="card"><h3>⏱ Session timeline</h3>
     <p class="muted small">Total <b>${fmtDur(planTotal())}</b>. Used for sessions you haven't started yet.</p>
     ${PHASES.map(([id, n]) => `<div class="row"><span>${n}</span><div class="stepper sm"><button class="round" data-act="phStep" data-id="${id}" data-d="-1" aria-label="Shorter">−</button><b>${st.phases[id]} min</b><button class="round" data-act="phStep" data-id="${id}" data-d="1" aria-label="Longer">+</button></div></div>`).join('')}
@@ -794,14 +821,6 @@ function planSheet() {
 
 /* ===== 9. SHEETS ===== */
 const SHEETS = {
-  edit() {
-    const { i, s } = ui.edit, x = S.current.ex[i], st = x.sets[s];
-    const stepper = (act, label, val) => `<div class="row"><span>${label}</span><div class="stepper"><button class="round" data-act="${act}" data-d="-1">−</button><b>${val}</b><button class="round" data-act="${act}" data-d="1">+</button></div></div>`;
-    return `<h2>${esc(nm(x.name))} · Set ${s + 1}</h2>` +
-      (x.kind === 'weight' ? stepper('ew', 'Weight', `${num(st.w)} kg`) : '') +
-      stepper('er', x.kind === 'time' ? 'Duration' : 'Reps', st.r + unitTxt(x)) +
-      `<button class="btn primary" data-act="closeSheet">Done</button>`;
-  },
   plan: planSheet,
   phases() {
     const c = S.current; if (!c) return '';
@@ -820,6 +839,7 @@ const SHEETS = {
     return `<h2>${esc(nm(h.name))}</h2><p class="muted" style="margin:0">${fmtDate(h.date)}${dur(h) ? ' · ' + dur(h) : ''}</p>` +
       h.ex.map(x => `<div><b>${esc(nm(x.name))}</b><br><span class="small">${x.sets.map(s => (s.done ? '✓ ' : '✗ ') + setVal(x, s)).join(' &nbsp; ')}</span></div>`).join('') +
       (h.tm.length ? `<div>🏃 Treadmill ${h.tm.filter(Boolean).length}/${h.tm.length}</div>` : '') +
+      (h.note ? `<div><b>📝 Note</b><div class="notepre" style="margin-top:4px">${esc(h.note)}</div></div>` : '') +
       `<button class="btn danger" data-act="histDel">Delete session</button><button class="btn primary" data-act="closeSheet">Done</button>`;
   },
   ibForm() {
@@ -943,8 +963,13 @@ function completeTimer() {
     toast('⏰ Time! Set done ✓');
   } else {
     c.tm[T.k] = true; if (c.tmLeft) delete c.tmLeft[T.k]; c.lastTs = Date.now();
-    toast(`⏰ ${(P().treadmill[T.k] || {}).name || 'Treadmill'} done ✓`);
-    if (c.tm.every(Boolean)) ui.scrollTo = 'fin';
+    const name = k => (P().treadmill[k] || {}).name || 'Treadmill';
+    const nk = c.tm.findIndex((v, k) => !v && k > T.k);   // auto-start the next treadmill part, no tap needed
+    if (nk >= 0) {
+      const left = tmRemaining(c, nk);
+      c.timer = { type:'tm', k: nk, end: T.end + left * 1000, total: left };   // continues from when the last one ended
+      toast(`✓ ${name(T.k)} done → ${name(nk)} started`);
+    } else { toast(`✓ ${name(T.k)} done — treadmill complete`); ui.scrollTo = 'fin'; }
   }
   save(); render();
 }
@@ -1059,7 +1084,7 @@ const ACT = {
       if (!confirm(`Start ${P().sessions[d.sid].name}? Your progress in ${nm(c.name)} will be saved to history.`)) return;
       archiveCurrent();
     }
-    S.current = newSession(d.sid); ui.expanded.clear(); ui.rest = null; ui.view = 'session';
+    S.current = newSession(d.sid); ui.expanded.clear(); ui.cues.clear(); ui.cueAuto = null; ui.rest = null; ui.view = 'session';
     save(); window.scrollTo(0, 0); render();
   },
   toggleSet(d) {
@@ -1072,11 +1097,10 @@ const ACT = {
   },
   toggleEx(d) { const i = +d.i; ui.expanded.has(i) ? ui.expanded.delete(i) : ui.expanded.add(i); render(); },
   wstep(d) { const x = S.current.ex[+d.i], open = x.sets.find(s => !s.done) || x.sets[x.sets.length - 1]; setWeight(x, open, open.w + (+d.d) * (x.step || 1)); },
-  editSet(d) { ui.edit = { i: +d.i, s: +d.s }; openSheet('edit'); },
-  ew(d) { const x = S.current.ex[ui.edit.i], st = x.sets[ui.edit.s]; setWeight(x, st, st.w + (+d.d) * (x.step || 1)); drawSheet(); },
-  er(d) {
-    const x = S.current.ex[ui.edit.i], st = x.sets[ui.edit.s];
-    st.r = Math.max(0, st.r + (+d.d) * (x.kind === 'time' && x.unit !== 'min' ? 5 : 1)); save(); render(); drawSheet();
+  sw(d) { const x = S.current.ex[+d.i], st = x.sets[+d.s]; setWeight(x, st, st.w + (+d.d) * (x.step || 1)); },   // also updates sets not done yet
+  sr(d) {   // reps (or seconds) for this set only
+    const x = S.current.ex[+d.i], st = x.sets[+d.s];
+    st.r = Math.max(1, st.r + (+d.d) * (x.kind === 'time' && x.unit !== 'min' ? 5 : 1)); save(); render();
   },
   tm(d) {   // tap a treadmill row to tick it off by hand (or un-tick)
     if (needStart()) return;
@@ -1137,11 +1161,11 @@ const ACT = {
   },
   exportWorkouts() {
     if (!S.history.length) return toast('No finished sessions yet');
-    const rows = [['Date', 'Session', 'Exercise', 'Set', 'Weight (kg)', 'Per hand', 'Reps / seconds', 'Done', 'Session minutes']];
+    const rows = [['Date', 'Session', 'Exercise', 'Set', 'Weight (kg)', 'Per hand', 'Reps / seconds', 'Done', 'Session minutes', 'Session note']];
     S.history.slice().reverse().forEach(h => {
-      const m = h.start && h.end ? Math.round((h.end - h.start) / 60000) : '';
-      h.ex.forEach(x => x.sets.forEach((s, j) => rows.push([h.date, nm(h.name), nm(x.name), j + 1, s.w ?? '', x.perHand ? 'yes' : '', s.r, s.done ? 'yes' : 'no', m])));
-      if (h.tm && h.tm.length) rows.push([h.date, nm(h.name), 'Treadmill', '', '', '', `${h.tm.filter(Boolean).length}/${h.tm.length} phases`, h.tm.every(Boolean) ? 'yes' : 'no', m]);
+      const m = h.start && h.end ? Math.round((h.end - h.start) / 60000) : '', note = h.note || '';
+      h.ex.forEach(x => x.sets.forEach((s, j) => rows.push([h.date, nm(h.name), nm(x.name), j + 1, s.w ?? '', x.perHand ? 'yes' : '', s.r, s.done ? 'yes' : 'no', m, note])));
+      if (h.tm && h.tm.length) rows.push([h.date, nm(h.name), 'Treadmill', '', '', '', `${h.tm.filter(Boolean).length}/${h.tm.length} phases`, h.tm.every(Boolean) ? 'yes' : 'no', m, note]);
     });
     shareFile(`gymie-workouts-${dkey()}.csv`, csv(rows));
   },
@@ -1192,6 +1216,7 @@ document.addEventListener('input', e => {
     return;
   }
   const k = ds.input; if (!k) return;
+  if (k === 'snote' && S.current) { S.current.note = el.value; save(); return; }   // saved as you type
   if (k.startsWith('ib-') && ui.ib) ui.ib[k.slice(3)] = el.value;
 });
 document.addEventListener('change', async e => {
