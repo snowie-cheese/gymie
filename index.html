@@ -137,20 +137,6 @@ summary::before{content:"▸";margin-right:6px} details[open]>summary::before{co
 .cd small{display:block;font-size:11px;font-weight:600;color:var(--ink2)}
 .tbtn{width:52px;min-height:58px;flex:none;border:2px solid var(--accent);border-radius:14px;background:var(--surface);color:var(--accent);font-size:18px;font-weight:700;padding:0}
 .tbtn.run{background:var(--accent);color:var(--accent-ink)}
-/* Set rows with inline −/+ for weight and reps */
-.set{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;border:2px solid var(--line);border-radius:14px;background:var(--surface)}
-.set.is-cur{border:3px solid var(--accent)}
-.set.is-done{background:var(--soft);border-color:transparent}
-.set .chk{width:46px;height:46px;font-size:18px;background:var(--surface);padding:0}
-.set.is-cur .chk{border-color:var(--accent);color:var(--accent)}
-.set.is-done .chk{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.vals{flex:1;display:flex;justify-content:flex-end;align-items:center;gap:10px;min-width:0}
-.mini{display:flex;align-items:center;gap:3px}
-.mini b{min-width:42px;text-align:center;font-size:18px;font-variant-numeric:tabular-nums;line-height:1.05}
-.mini b small{display:block;font-size:10px;font-weight:600;color:var(--ink2)}
-.mb{width:34px;height:42px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--accent);font-size:20px;font-weight:700;padding:0}
-.set.is-done .mb{opacity:.55}
-.set .tbtn{width:46px;min-height:46px}
 textarea{font:inherit;font-size:16px;width:100%;min-height:80px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface);color:var(--ink);resize:vertical;margin-top:4px}
 .notepre{font-size:14px;color:var(--ink2);white-space:pre-wrap;background:var(--soft);border-radius:10px;padding:8px 10px}
 .stepper.sm{gap:6px}
@@ -284,7 +270,7 @@ const DEFAULT_PLAN = {
     'Assess strength, glute measurements, thigh feel, energy.'
   ]
 };
-const APP_VERSION = '2026-11-12.4';   // bump on every update so you can see which version your phone runs
+const APP_VERSION = '2026-11-12.5';   // bump on every update so you can see which version your phone runs
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 /* Session timeline phases. Durations (minutes) are editable in Settings; default total 1 h 15 min.
    The timeline starts when you tap "Start workout". */
@@ -595,27 +581,31 @@ function exCard(x, i, cur) {
       <span class="exname">${done ? '<span class="tick">✓</span>' : ''}${esc(nm(x.name))}</span>
       <span class="target">${x.sets.length} × ${repsLabel(x)}</span></button>`;
   if (!open) return h + '</section>';
+  // One Weight and one Reps control per exercise. They change the sets not done yet and are remembered
+  // for the next session (weight per exercise, reps for this exercise in this session plan).
+  const open1 = x.sets.find(s => !s.done);
+  const stepRow = (act, what, big, unit, sub) => `<div class="wrow"><button class="round" data-act="${act}" data-i="${i}" data-d="-1" aria-label="Less ${what}">−</button>
+      <div class="wval"><b>${big}</b> ${unit}${sub ? `<small>${sub}</small>` : ''}</div>
+      <button class="round" data-act="${act}" data-i="${i}" data-d="1" aria-label="More ${what}">+</button></div>`;
   if (x.kind === 'weight') {
     if (readyToIncrease(x)) h += `<span class="badge">↑ Ready to increase?</span>`;
-    const mainW = (x.sets.find(s => !s.done) || x.sets[x.sets.length - 1]).w;
-    h += `<div class="wrow"><button class="round" data-act="wstep" data-i="${i}" data-d="-1" aria-label="Decrease weight">−</button>
-      <div class="wval"><b>${num(mainW)}</b> kg${x.perHand ? `<small>per hand · ${fmtW(mainW, x)}</small>` : ''}</div>
-      <button class="round" data-act="wstep" data-i="${i}" data-d="1" aria-label="Increase weight">+</button></div>`;
+    const mainW = open1 ? open1.w : nextWeight(x.ex);
+    h += stepRow('wstep', 'weight', num(mainW), 'kg', x.perHand ? `per hand · ${fmtW(mainW, x)}` : '');
   }
+  const mainR = open1 ? open1.r : repTop(x);
+  h += stepRow('rstep', x.kind === 'time' ? 'time' : 'reps', mainR, x.kind === 'time' ? (x.unit === 'min' ? 'min' : 'sec') : 'reps', x.perSide ? 'each side' : '');
+  // Set rows are read-only: tap a row to tick it done (holds also get a ▶ countdown button)
   const T = S.current.timer;
   h += x.sets.map((s, j) => {
     const c = isCur && cur.s === j, run = T && T.type === 'hold' && T.i === i && T.s === j;
-    const tb = x.kind === 'time' && !s.done   // hold exercises get a countdown button
+    const tb = x.kind === 'time' && !s.done
       ? `<button class="tbtn${run ? ' run' : ''}" data-act="${run ? 'stopTimer' : 'startHold'}" data-i="${i}" data-s="${j}" aria-label="${run ? 'Stop timer' : 'Start timer'}">${run ? '■' : '▶'}</button>` : '';
-    // Inline −/+ for this set's weight and reps (or seconds). The round number on the left ticks the set done.
-    const mini = (act, val, unit, what) => `<div class="mini"><button class="mb" data-act="${act}" data-i="${i}" data-s="${j}" data-d="-1" aria-label="Less ${what}">−</button>` +
-      `<b>${val}<small>${unit}</small></b><button class="mb" data-act="${act}" data-i="${i}" data-s="${j}" data-d="1" aria-label="More ${what}">+</button></div>`;
-    const wPart = x.kind === 'weight' ? mini('sw', num(s.w), x.perHand ? 'kg/hand' : 'kg', 'weight') : '';
-    const rPart = run ? `<b class="cd" data-cd>${mmss(timerLeft(S.current))}</b>`
-      : mini('sr', s.r, x.kind === 'time' ? (x.unit === 'min' ? 'min' : 'sec') : (x.perSide ? 'reps/side' : 'reps'), x.kind === 'time' ? 'time' : 'reps');
     return `<div class="set${s.done ? ' is-done' : ''}${c ? ' is-cur' : ''}" id="s${i}-${j}">
-      <button class="chk" data-act="toggleSet" data-i="${i}" data-s="${j}" aria-pressed="${s.done}" aria-label="Set ${j + 1} done">${s.done ? '✓' : j + 1}</button>
-      <div class="vals">${wPart}${rPart}</div>${tb}</div>`;
+      <button class="setmain" data-act="toggleSet" data-i="${i}" data-s="${j}" aria-pressed="${s.done}">
+        <span class="chk">${s.done ? '✓' : j + 1}</span>
+        <span class="setlbl">${c ? '<em>NOW</em>' : ''}Set ${j + 1}</span>
+        <span class="setval">${run ? `<span class="cd" data-cd>${mmss(timerLeft(S.current))}</span>` : setVal(x, s)}</span></button>
+      ${tb}</div>`;
   }).join('');
   const cue = P().exercises[x.ex]?.cue || DEFAULT_PLAN.exercises[x.ex]?.cue, fig = figHTML(x.ex);
   if (cue || fig) h += `<details class="cue" data-cue="${i}"${ui.cues.has(i) ? ' open' : ''}><summary>Form cue</summary>${fig}${cue ? `<p>${esc(cue)}</p>` : ''}</details>`;
@@ -1042,12 +1032,20 @@ function onSetDone(c, i, j) {   // shared by a tap and by a finished hold countd
     ui.scrollTo = nxt ? `ex${nxt.i}` : (c.tm.length ? 'tm' : 'fin'); ui.pop = null;
   }
 }
-/* Changing the weight of one set applies it to that set and every set not done yet today,
+/* Weight −/+ applies to every set not done yet (done sets keep what you actually lifted)
    and becomes the starting weight for the next session (also shown in Edit workout plan). */
-function setWeight(x, st, w) {
+function setWeight(x, w) {
   const nw = Math.max(0, Math.round(w * 100) / 100);
-  st.w = nw; x.sets.forEach(s => { if (!s.done) s.w = nw; });
+  x.sets.forEach(s => { if (!s.done) s.w = nw; });
   S.weights[x.ex] = nw; save(); render();
+}
+/* Reps −/+ is saved into the plan for this session, so the next time you do it starts there
+   (and Edit workout plan shows the same number). */
+function rememberReps(c, i, r) {
+  const it = P().sessions[c.sid]?.items[i];
+  if (!it || it.ex !== c.ex[i].ex) return;
+  if (!S.plan) S.plan = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+  S.plan.sessions[c.sid].items[i].reps = r;
 }
 const ACT = {
   tab(d) { ui.tab = d.v; if (d.v === 'workout' && !ui.view) ui.view = null; ui.sheet = null; drawSheet(); window.scrollTo(0, 0); render(); },
@@ -1096,11 +1094,15 @@ const ACT = {
     save(); render();
   },
   toggleEx(d) { const i = +d.i; ui.expanded.has(i) ? ui.expanded.delete(i) : ui.expanded.add(i); render(); },
-  wstep(d) { const x = S.current.ex[+d.i], open = x.sets.find(s => !s.done) || x.sets[x.sets.length - 1]; setWeight(x, open, open.w + (+d.d) * (x.step || 1)); },
-  sw(d) { const x = S.current.ex[+d.i], st = x.sets[+d.s]; setWeight(x, st, st.w + (+d.d) * (x.step || 1)); },   // also updates sets not done yet
-  sr(d) {   // reps (or seconds) for this set only
-    const x = S.current.ex[+d.i], st = x.sets[+d.s];
-    st.r = Math.max(1, st.r + (+d.d) * (x.kind === 'time' && x.unit !== 'min' ? 5 : 1)); save(); render();
+  wstep(d) {
+    const x = S.current.ex[+d.i], open = x.sets.find(s => !s.done);
+    setWeight(x, (open ? open.w : nextWeight(x.ex)) + (+d.d) * (x.step || 1));
+  },
+  rstep(d) {   // reps (or seconds) for the sets not done yet; remembered in the plan for this session
+    const c = S.current, i = +d.i, x = c.ex[i], open = x.sets.find(s => !s.done);
+    const nr = Math.max(1, (open ? open.r : repTop(x)) + (+d.d) * (x.kind === 'time' && x.unit !== 'min' ? 5 : 1));
+    x.sets.forEach(s => { if (!s.done) s.r = nr; });
+    x.reps = nr; rememberReps(c, i, nr); save(); render();
   },
   tm(d) {   // tap a treadmill row to tick it off by hand (or un-tick)
     if (needStart()) return;
