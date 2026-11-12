@@ -129,6 +129,17 @@ summary::before{content:"▸";margin-right:6px} details[open]>summary::before{co
 /* Treadmill & lists */
 .tmrow{width:100%;display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 12px;margin-top:8px;border:2px solid var(--line);border-radius:14px;background:var(--surface);text-align:left}
 .tmrow.is-done{background:var(--soft);border-color:transparent}
+.tmrow.is-run{border-color:var(--accent);border-width:3px}
+.tmrow>span:nth-child(2){flex:1}
+.tmwrap{display:flex;gap:8px;margin-top:8px}
+.tmwrap .tmrow{margin-top:0;flex:1}
+.cd{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cd small{display:block;font-size:11px;font-weight:600;color:var(--ink2)}
+.tbtn{width:52px;min-height:58px;flex:none;border:2px solid var(--accent);border-radius:14px;background:var(--surface);color:var(--accent);font-size:18px;font-weight:700;padding:0}
+.tbtn.run{background:var(--accent);color:var(--accent-ink)}
+.stepper.sm{gap:6px}
+.stepper.sm .round{width:40px;height:40px;font-size:22px;border-width:1.5px}
+.stepper.sm b{min-width:60px;font-size:17px}
 .tmrow.is-done .chk{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 ul.tips{margin:4px 0 0;padding-left:20px} ul.tips li{margin:4px 0}
 .hist{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:64px}
@@ -178,8 +189,10 @@ nav button[aria-current=page]{color:var(--accent);font-weight:700}
 .sheet-panel{position:absolute;left:0;right:0;bottom:0;max-height:90vh;overflow:auto;background:var(--surface);border-radius:20px 20px 0 0;padding:20px 16px calc(env(safe-area-inset-bottom) + 16px);display:flex;flex-direction:column;gap:12px;animation:up .2s ease}
 @keyframes up{from{transform:translateY(40px);opacity:0}}
 .pe{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
-.pe .ins{display:flex;gap:6px;align-items:center}
-.pe input{width:64px;padding:8px;text-align:center}
+.pe .ins{display:grid;grid-template-columns:46px 10px 46px 58px;gap:4px;align-items:center;text-align:center}
+.pe input{width:100%;padding:8px 2px;text-align:center}
+.pehead{border-bottom:0;padding:0;font-size:12px;color:var(--ink2)}
+.nokg{color:var(--ink2)}
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:90vw}
 </style>
 </head>
@@ -207,8 +220,8 @@ nav button[aria-current=page]{color:var(--accent);font-weight:700}
 const DEFAULT_PLAN = {
   exercises: {
     rdl:     { name:'Dumbbell RDL', kind:'weight', perHand:true, start:6, step:1, cue:'Push hips back, knees slightly bent.' },
-    thrust:  { name:'Hip Thrust', kind:'weight', start:20, step:1, cue:"Squeeze glutes at the top, don't arch your lower back." },
-    abd:     { name:'Hip Abduction', kind:'weight', start:15, step:1, cue:'Open slowly, no momentum.' },
+    thrust:  { name:'Hip Thrust', kind:'weight', start:10, step:1, cue:"Squeeze glutes at the top, don't arch your lower back." },
+    abd:     { name:'Hip Abduction', kind:'weight', start:35, step:1, cue:'Open slowly, no momentum.' },
     bridge:  { name:'Glute Bridge Hold', kind:'time', cue:'Squeeze glutes at the top, keep ribs down.' },
     lat:     { name:'Lat Pulldown', kind:'weight', start:10, step:1, cue:'Pull to upper chest, elbows down and back.' },
     row:     { name:'Seated Cable Row', kind:'weight', start:10, step:1, cue:'Chest tall, squeeze shoulder blades together.' },
@@ -223,25 +236,25 @@ const DEFAULT_PLAN = {
   },
   sessions: {
     glA: { name:'Glute A', sub:'RDL · Hip Thrust · Abduction', treadmill:true, items:[
-      { ex:'rdl', sets:3, reps:[10,12] }, { ex:'thrust', sets:3, reps:[10,12] },
-      { ex:'abd', sets:3, reps:[15,20] }, { ex:'bridge', sets:2, reps:[20,30] } ] },
+      { ex:'rdl', sets:3, reps:10 }, { ex:'thrust', sets:3, reps:10 },
+      { ex:'abd', sets:3, reps:15 }, { ex:'bridge', sets:2, reps:20 } ] },
     bkA: { name:'Back & Core A', sub:'Pulldown · Row · Face Pull · Core', treadmill:true, items:[
-      { ex:'lat', sets:3, reps:[12,12] }, { ex:'row', sets:2, reps:[12,12] }, { ex:'face', sets:2, reps:[15,15] },
-      { ex:'deadbug', sets:2, reps:[10,10] }, { ex:'revcr', sets:2, reps:[12,12] } ] },
+      { ex:'lat', sets:3, reps:12 }, { ex:'row', sets:2, reps:12 }, { ex:'face', sets:2, reps:15 },
+      { ex:'deadbug', sets:2, reps:10 }, { ex:'revcr', sets:2, reps:12 } ] },
     glB: { name:'Glute B', sub:'Hip Thrust · RDL · Abduction', treadmill:true, items:[
-      { ex:'thrust', sets:3, reps:[12,12] }, { ex:'rdl', sets:2, reps:[12,12] },
-      { ex:'abd', sets:3, reps:[15,20] }, { ex:'frog', sets:2, reps:[20,20] } ] },
+      { ex:'thrust', sets:3, reps:12 }, { ex:'rdl', sets:2, reps:12 },
+      { ex:'abd', sets:3, reps:15 }, { ex:'frog', sets:2, reps:20 } ] },
     bkB: { name:'Back & Core B', sub:'Pulldown · Straight Arm · Face Pull · Core', treadmill:true, items:[
-      { ex:'lat', sets:2, reps:[12,12] }, { ex:'sapd', sets:2, reps:[12,12] }, { ex:'face', sets:2, reps:[15,15] },
-      { ex:'plank', sets:2, reps:[30,30] }, { ex:'heel', sets:2, reps:[12,12] } ] },
+      { ex:'lat', sets:2, reps:12 }, { ex:'sapd', sets:2, reps:12 }, { ex:'face', sets:2, reps:15 },
+      { ex:'plank', sets:2, reps:30 }, { ex:'heel', sets:2, reps:12 } ] },
     stretch: { name:'Stretching / Yoga', sub:'Optional, light', optional:true, treadmill:false, items:[
-      { ex:'yoga', sets:1, reps:[20,30] } ] }
+      { ex:'yoga', sets:1, reps:20 } ] }
   },
   schedule: ['stretch', 'glA', 'bkA', null, 'glB', 'bkB', null],
-  treadmill: [
-    { name:'Warm-up',      min:'5',    setting:'Incline 2 · Speed 4' },
-    { name:'Incline walk', min:'5–10', setting:'Incline 6 · Speed 5–5.5' },
-    { name:'Cool-down',    min:'5',    setting:'Incline 0 · Speed 4.5' }
+  treadmill: [   // min = countdown length in minutes
+    { name:'Warm-up',      min:5,  setting:'Incline 2 · Speed 4' },
+    { name:'Incline walk', min:10, setting:'Incline 6 · Speed 5–5.5' },
+    { name:'Cool-down',    min:5,  setting:'Incline 0 · Speed 4.5' }
   ],
   walkCue: 'Short, even steps. Land softly on the heel, roll through mid-foot to toes. No need to hold the rails.',
   tips: [
@@ -255,7 +268,7 @@ const DEFAULT_PLAN = {
     'Assess strength, glute measurements, thigh feel, energy.'
   ]
 };
-const APP_VERSION = '2026-11-10.4';   // bump on every update so you can see which version your phone runs
+const APP_VERSION = '2026-11-12.1';   // bump on every update so you can see which version your phone runs
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 /* Session timeline phases. Durations (minutes) are editable in Settings; default total 1 h 15 min.
    The timeline starts when you tap "Start workout". */
@@ -264,7 +277,7 @@ const DEFAULT_PHASES = { warm:5, weights:37, treadmill:20, stretch:5, wrap:8 };
 /* InBody fields you can log (all optional) */
 const IB_FIELDS = [
   ['weight', 'Weight', 'kg'], ['smm', 'Skeletal muscle', 'kg'], ['bfm', 'Body fat mass', 'kg'],
-  ['pbf', 'Body fat', '%'], ['bmi', 'BMI', ''], ['vfl', 'Visceral fat lvl', ''], ['score', 'InBody score', '']
+  ['pbf', 'Body fat', '%'], ['bmi', 'BMI', ''], ['score', 'InBody score', '']
 ];
 
 /* Exercise hint drawings (side view unless noted). Each frame: h = head [x,y], b = body lines,
@@ -337,8 +350,8 @@ function figHTML(id) {
 // Nothing is ever uploaded: everything stays in this browser on this phone.
 const KEY = 'gymlog';
 const DEFAULT_STATE = () => ({
-  version: 2,
-  weights: {},          // exerciseId -> last used weight (kg)
+  version: 3,
+  weights: {},          // exerciseId -> weight the next session starts with (kg)
   history: [],          // finished sessions, newest first
   current: null,        // in-progress session (resumed if reopened the same day)
   inbody: [],           // InBody results, newest first
@@ -349,7 +362,18 @@ function migrate(d) {
   const base = DEFAULT_STATE();
   if (!d || typeof d !== 'object') return base;
   if ((d.version || 1) < 2) { delete d.assessments; d.plan = null; }   // v1 → v2: new 1 kg steps, plain-English plan
-  return { ...base, ...d, version: 2, settings: { rest: d.settings?.rest ?? 90, startDate: d.settings?.startDate ?? null,
+  if ((d.version || 1) < 3) {   // v2 → v3: one rep target, new Hip Thrust / Abduction weights. History is left untouched.
+    d.weights = { ...(d.weights || {}), thrust: 10, abd: 35 };
+    if (d.plan) {
+      Object.values(d.plan.sessions || {}).forEach(s => (s.items || []).forEach(it => { if (Array.isArray(it.reps)) it.reps = it.reps[0]; }));
+      if (d.plan.exercises?.thrust) d.plan.exercises.thrust.start = 10;
+      if (d.plan.exercises?.abd) d.plan.exercises.abd.start = 35;
+      d.plan.treadmill = DEFAULT_PLAN.treadmill;
+    }
+    const c = d.current;   // today's unfinished session: update those two exercises if not started yet
+    if (c) c.ex.forEach(x => { if ((x.ex === 'thrust' || x.ex === 'abd') && !x.sets.some(s => s.done)) x.sets.forEach(s => { s.w = d.weights[x.ex]; }); });
+  }
+  return { ...base, ...d, version: 3, settings: { rest: d.settings?.rest ?? 90, startDate: d.settings?.startDate ?? null,
     phases: { ...DEFAULT_PHASES, ...(d.settings?.phases || {}) } } };
 }
 function load() {
@@ -409,9 +433,20 @@ const isTraining = sid => { const s = P().sessions[sid]; return !!s && !s.option
 const goalPerWeek = () => P().schedule.filter(s => s && isTraining(s)).length;
 const todaySid = () => { const sid = P().schedule[new Date().getDay()]; return sid && P().sessions[sid] ? sid : null; };
 const unitTxt = x => x.kind === 'time' ? (x.unit === 'min' ? ' min' : ' s') : '';
+/* Rep targets: plan uses one number; sessions saved by older versions stored [min,max] — both are supported */
+const repTop = x => Array.isArray(x.reps) ? x.reps[1] : x.reps;
+const repLow = x => Array.isArray(x.reps) ? x.reps[0] : x.reps;
 function repsLabel(x) {
-  const r = x.reps[0] === x.reps[1] ? x.reps[0] : `${x.reps[0]}–${x.reps[1]}`;
+  const r = repLow(x) === repTop(x) ? repTop(x) : `${repLow(x)}–${repTop(x)}`;
   return r + unitTxt(x) + (x.perSide ? ' each side' : '');
+}
+const nextWeight = id => S.weights[id] ?? P().exercises[id]?.start ?? 0;   // weight the next session starts with
+const tmMins = ph => typeof ph.min === 'number' ? ph.min : (parseInt(String(ph.min).split(/\D+/).filter(Boolean).pop()) || 5);
+const holdSecs = (x, s) => x.unit === 'min' ? s.r * 60 : s.r;
+const timerLeft = c => c && c.timer ? Math.max(0, Math.ceil((c.timer.end - Date.now()) / 1000)) : 0;
+function tmRemaining(c, k) {   // seconds left on treadmill part k (running, paused or not started)
+  if (c.timer && c.timer.type === 'tm' && c.timer.k === k) return timerLeft(c);
+  return (c.tmLeft && c.tmLeft[k] != null) ? c.tmLeft[k] : tmMins(P().treadmill[k] || { min:5 }) * 60;
 }
 function setVal(x, s) {
   if (x.kind === 'weight') return `${fmtW(s.w, x)} × ${s.r}`;
@@ -454,7 +489,7 @@ function lastPerf(exId) {
 }
 function readyToIncrease(x) {   // last time: every set done at the top of the rep range, and you haven't gone up yet
   const e = lastPerf(x.ex); if (!e) return false;
-  if (!e.sets.every(s => s.done && s.r >= e.reps[1])) return false;
+  if (!e.sets.every(s => s.done && s.r >= repTop(e))) return false;
   const curW = (x.sets.find(s => !s.done) || x.sets[x.sets.length - 1]).w;
   return Math.min(...e.sets.map(s => s.w ?? 0)) >= curW;
 }
@@ -465,9 +500,9 @@ function newSession(sid) {
     tm: ses.treadmill ? p.treadmill.map(() => false) : [],
     ex: ses.items.map(it => {
       const e = p.exercises[it.ex] || { name: it.ex, kind: 'bw' };
-      const w = e.kind === 'weight' ? (S.weights[it.ex] ?? e.start ?? 0) : null;
+      const w = e.kind === 'weight' ? nextWeight(it.ex) : null, r = repLow(it);
       return { ex: it.ex, name: e.name, kind: e.kind, perHand: !!e.perHand, perSide: !!e.perSide, unit: e.unit || null,
-        step: e.step || 1, reps: [...it.reps], sets: Array.from({ length: it.sets }, () => ({ w, r: it.reps[0], done: false })) };
+        step: e.step || 1, reps: r, sets: Array.from({ length: it.sets }, () => ({ w, r, done: false })) };
     })
   };
 }
@@ -539,14 +574,17 @@ function exCard(x, i, cur) {
       <div class="wval"><b>${num(mainW)}</b> kg${x.perHand ? `<small>per hand · ${fmtW(mainW, x)}</small>` : ''}</div>
       <button class="round" data-act="wstep" data-i="${i}" data-d="1" aria-label="Increase weight">+</button></div>`;
   }
+  const T = S.current.timer;
   h += x.sets.map((s, j) => {
-    const c = isCur && cur.s === j;
+    const c = isCur && cur.s === j, run = T && T.type === 'hold' && T.i === i && T.s === j;
+    const tb = x.kind === 'time' && !s.done   // hold exercises get a countdown button
+      ? `<button class="tbtn${run ? ' run' : ''}" data-act="${run ? 'stopTimer' : 'startHold'}" data-i="${i}" data-s="${j}" aria-label="${run ? 'Stop timer' : 'Start timer'}">${run ? '■' : '▶'}</button>` : '';
     return `<div class="set${s.done ? ' is-done' : ''}${c ? ' is-cur' : ''}" id="s${i}-${j}">
       <button class="setmain" data-act="toggleSet" data-i="${i}" data-s="${j}" aria-pressed="${s.done}">
         <span class="chk">${s.done ? '✓' : j + 1}</span>
         <span class="setlbl">${c ? '<em>NOW</em>' : ''}Set ${j + 1}</span>
-        <span class="setval">${setVal(x, s)}</span></button>
-      <button class="edit" data-act="editSet" data-i="${i}" data-s="${j}" aria-label="Edit set">✎</button></div>`;
+        <span class="setval">${run ? `<span class="cd" data-cd>${mmss(timerLeft(S.current))}</span>` : setVal(x, s)}</span></button>
+      ${tb}<button class="edit" data-act="editSet" data-i="${i}" data-s="${j}" aria-label="Edit set">✎</button></div>`;
   }).join('');
   const cue = P().exercises[x.ex]?.cue || DEFAULT_PLAN.exercises[x.ex]?.cue, fig = figHTML(x.ex);
   if (cue || fig) h += `<details class="cue" data-cue="${i}"${ui.cues.has(i) ? ' open' : ''}><summary>Form cue</summary>${fig}${cue ? `<p>${esc(cue)}</p>` : ''}</details>`;
@@ -554,11 +592,16 @@ function exCard(x, i, cur) {
 }
 function treadmillCard(c) {
   if (!c.tm.length) return '';
-  const p = P();
-  return `<section class="card" id="tm"><h3>🏃 Treadmill <small class="muted">· 15–20 min</small></h3>` +
-    c.tm.map((v, k) => { const ph = p.treadmill[k] || { name:'—', min:'', setting:'' };
-      return `<button class="tmrow${v ? ' is-done' : ''}" data-act="tm" data-k="${k}"><span class="chk">${v ? '✓' : k + 1}</span>
-        <span><b>${esc(ph.name)}</b> · ${esc(ph.min)} min<br><small class="muted">${esc(ph.setting)}</small></span></button>`; }).join('') +
+  const p = P(), T = c.timer, total = c.tm.reduce((a, v, k) => a + tmMins(p.treadmill[k] || { min:0 }), 0);
+  return `<section class="card" id="tm"><h3>🏃 Treadmill <small class="muted">· ${total} min</small></h3>` +
+    c.tm.map((v, k) => {
+      const ph = p.treadmill[k] || { name:'—', min:5, setting:'' }, run = T && T.type === 'tm' && T.k === k;
+      const paused = !run && c.tmLeft && c.tmLeft[k] != null;
+      return `<div class="tmwrap"><button class="tmrow${v ? ' is-done' : ''}${run ? ' is-run' : ''}" data-act="tm" data-k="${k}"><span class="chk">${v ? '✓' : k + 1}</span>
+        <span><b>${esc(ph.name)}</b> · ${tmMins(ph)} min<br><small class="muted">${esc(ph.setting)}</small></span>
+        ${v ? '' : `<span class="cd"${run ? ' data-cd' : ''}>${mmss(tmRemaining(c, k))}${paused ? '<small> paused</small>' : ''}</span>`}</button>
+        ${v ? '' : `<button class="tbtn${run ? ' run' : ''}" data-act="${run ? 'stopTimer' : 'tmStart'}" data-k="${k}" aria-label="${run ? 'Pause' : 'Start'}">${run ? '⏸' : '▶'}</button>`}</div>`;
+    }).join('') +
     `<p class="muted small">${esc(p.walkCue)}</p></section>`;
 }
 /* ---- Session timeline (header bar). Each session keeps its own phase list (c.ph) and skips (c.cut):
@@ -713,7 +756,7 @@ function renderSettings() {
   </section>
   <section class="card"><h3>⏱ Session timeline</h3>
     <p class="muted small">Total <b>${fmtDur(planTotal())}</b>. Used for sessions you haven't started yet.</p>
-    ${PHASES.map(([id, n]) => `<div class="row"><span>${n}</span><div class="stepper"><button class="round" data-act="phStep" data-id="${id}" data-d="-1" aria-label="Shorter">−</button><b>${st.phases[id]} min</b><button class="round" data-act="phStep" data-id="${id}" data-d="1" aria-label="Longer">+</button></div></div>`).join('')}
+    ${PHASES.map(([id, n]) => `<div class="row"><span>${n}</span><div class="stepper sm"><button class="round" data-act="phStep" data-id="${id}" data-d="-1" aria-label="Shorter">−</button><b>${st.phases[id]} min</b><button class="round" data-act="phStep" data-id="${id}" data-d="1" aria-label="Longer">+</button></div></div>`).join('')}
     <div class="row"><button class="btn inline" data-act="phReset">Reset to default (1 h 15 min)</button></div></section>
   <section class="card"><button class="btn" data-act="planOpen">✏️ Edit workout plan</button></section>
   <section class="card"><h3>📊 Export for tracking</h3>
@@ -726,24 +769,25 @@ function renderSettings() {
   <section class="card"><button class="btn" data-act="checkUpdate">🔄 Check for updates</button>
     <p class="muted small center" style="margin-bottom:0">App version ${APP_VERSION} · data v${S.version}</p></section>`;
 }
+/* Edit workout plan: works on a draft (ui.pd) — nothing changes until "Save changes".
+   The kg column is the weight the NEXT session starts with (same number the app remembers after each workout). */
 function planSheet() {
-  const p = P();
-  let h = `<h2>Edit workout plan</h2><p class="muted small">Changes apply from the next new session. Remembered weights are kept.</p>`;
+  const p = ui.pd.plan;
+  let h = `<h2>Edit workout plan</h2><p class="muted small" style="margin:0">Sets × reps and the weight your next session starts with. Past workouts are not changed.</p>`;
   for (const [sid, ses] of Object.entries(p.sessions)) {
-    h += `<h3>${esc(ses.name)}</h3><div class="muted small">Sets × reps (min–max)</div>`;
+    h += `<h3>${esc(ses.name)}</h3><div class="pe pehead"><span></span><div class="ins"><span>Sets</span><span></span><span>Reps</span><span>kg</span></div></div>`;
     ses.items.forEach((it, k) => {
-      const base = `sessions.${sid}.items.${k}`;
-      h += `<div class="pe"><span>${esc(p.exercises[it.ex]?.name || it.ex)}</span><div class="ins">
-        <input type="number" inputmode="numeric" min="1" value="${it.sets}" data-change="plan" data-path="${base}.sets" aria-label="Sets">×
-        <input type="number" inputmode="numeric" min="1" value="${it.reps[0]}" data-change="plan" data-path="${base}.reps.0" aria-label="Min reps">–
-        <input type="number" inputmode="numeric" min="1" value="${it.reps[1]}" data-change="plan" data-path="${base}.reps.1" aria-label="Max reps"></div></div>`;
+      const e = p.exercises[it.ex] || {}, unit = e.kind === 'time' ? (e.unit === 'min' ? 'minutes' : 'seconds') : e.perSide ? 'each side' : e.perHand ? 'kg per hand' : '';
+      h += `<div class="pe"><span>${esc(e.name || it.ex)}${unit ? `<small class="muted"> · ${unit}</small>` : ''}</span><div class="ins">
+        <input type="number" inputmode="numeric" min="1" value="${it.sets}" data-pd="sets" data-sid="${sid}" data-k="${k}" aria-label="Sets"><span>×</span>
+        <input type="number" inputmode="numeric" min="1" value="${repLow(it)}" data-pd="reps" data-sid="${sid}" data-k="${k}" aria-label="Reps">
+        ${e.kind === 'weight' ? `<input type="number" inputmode="decimal" step="0.5" min="0" value="${num(ui.pd.w[it.ex])}" data-pw="${it.ex}" aria-label="Weight kg">` : '<span class="nokg">—</span>'}
+      </div></div>`;
     });
   }
-  h += `<h3>Starting weight (kg)</h3><div class="muted small">Used only until you log the exercise once.</div>`;
-  for (const [id, e] of Object.entries(p.exercises)) if (e.kind === 'weight')
-    h += `<div class="pe"><span>${esc(e.name)}${e.perHand ? ' <small class="muted">(per hand)</small>' : ''}</span><div class="ins">
-      <input type="number" inputmode="decimal" step="0.5" value="${e.start}" data-change="plan" data-path="exercises.${id}.start" aria-label="Start weight"></div></div>`;
-  return h + `<button class="btn danger" data-act="planReset">Restore default plan</button><button class="btn primary" data-act="closeSheet">Done</button>`;
+  return h + `<button class="btn primary" data-act="planSave">💾 Save changes</button>
+    <button class="btn" data-act="closeSheet">Cancel</button>
+    <button class="btn danger" data-act="planReset">Reset sets & reps to default</button>`;
 }
 
 /* ===== 9. SHEETS ===== */
@@ -837,18 +881,30 @@ function renderAction() {   // big thumb button: always does the next thing
     b.innerHTML = `<span>▶ Start workout</span><span class="a2">Starts the timer · plan ${fmtDur(total)}</span>`;
     return;
   }
+  const T = c.timer;
+  if (T) {   // a countdown is running: the big button pauses/stops it
+    const label = T.type === 'hold' ? `${nm(c.ex[T.i].name)} · Set ${T.s + 1}` : (P().treadmill[T.k] || {}).name;
+    b.dataset.act = 'stopTimer';
+    b.innerHTML = `<span>${T.type === 'tm' ? '⏸ Pause' : '■ Stop'} · ${esc(label)}</span><span class="a2"><span data-cd>${mmss(timerLeft(c))}</span> left</span>`;
+    return;
+  }
   const cur = currentPos(c);
   if (cur) {
     const x = c.ex[cur.i], s = x.sets[cur.s];
+    if (x.kind === 'time') {
+      Object.assign(b.dataset, { act:'startHold', i:cur.i, s:cur.s });
+      b.innerHTML = `<span>▶ Start ${setVal(x, s)} · ${esc(nm(x.name))}</span><span class="a2">Set ${cur.s + 1}/${x.sets.length} · beeps when time is up</span>`;
+      return;
+    }
     Object.assign(b.dataset, { act:'toggleSet', i:cur.i, s:cur.s });
     b.innerHTML = `<span>✓ ${esc(nm(x.name))} · Set ${cur.s + 1}/${x.sets.length}</span><span class="a2">${setVal(x, s)}</span>`;
     return;
   }
   const k = c.tm.findIndex(v => !v);
   if (k >= 0) {
-    const ph = P().treadmill[k] || { name:'', min:'', setting:'' };
-    Object.assign(b.dataset, { act:'tm', k });
-    b.innerHTML = `<span>✓ 🏃 ${esc(ph.name)} · ${esc(ph.min)} min</span><span class="a2">${esc(ph.setting)}</span>`;
+    const ph = P().treadmill[k] || { name:'', min:5, setting:'' }, resume = c.tmLeft && c.tmLeft[k] != null;
+    Object.assign(b.dataset, { act:'tmStart', k });
+    b.innerHTML = `<span>▶ ${resume ? 'Resume' : 'Start'} 🏃 ${esc(ph.name)} · ${mmss(tmRemaining(c, k))}</span><span class="a2">${esc(ph.setting)}</span>`;
   } else { b.dataset.act = 'finish'; b.innerHTML = `<span>🏁 Finish session</span>`; }
 }
 function renderNav() {
@@ -874,6 +930,50 @@ function tickRest() {
   else { el.hidden = true; if (Date.now() - ui.restOver >= 5000) ui.restOver = 0; }
   updateBottomPad();
 }
+/* ---- Countdowns for hold exercises and treadmill parts. Stored in the session (c.timer) so they
+   survive closing the app; a countdown that ended while the phone was locked completes on return. ---- */
+function completeTimer() {
+  const c = S.current, T = c && c.timer; if (!T) return;
+  c.timer = null; beep();
+  if (T.type === 'hold') {
+    const s = c.ex[T.i] && c.ex[T.i].sets[T.s];
+    if (s && !s.done) { s.done = true; onSetDone(c, T.i, T.s); }
+    toast('⏰ Time! Set done ✓');
+  } else {
+    c.tm[T.k] = true; if (c.tmLeft) delete c.tmLeft[T.k]; c.lastTs = Date.now();
+    toast(`⏰ ${(P().treadmill[T.k] || {}).name || 'Treadmill'} done ✓`);
+    if (c.tm.every(Boolean)) ui.scrollTo = 'fin';
+  }
+  save(); render();
+}
+function tickTimer() {
+  const c = S.current; if (!c || !c.timer) return;
+  const left = timerLeft(c);
+  if (left <= 0) return completeTimer();
+  document.querySelectorAll('[data-cd]').forEach(el => { el.textContent = mmss(left); });
+}
+function pauseTimer(c) {   // stop the running countdown: treadmill keeps its remaining time, a hold is cancelled
+  const T = c.timer; if (!T) return;
+  if (T.type === 'tm') { c.tmLeft = c.tmLeft || {}; c.tmLeft[T.k] = timerLeft(c); }
+  c.timer = null;
+}
+let actx = null;
+function unlockAudio() {   // iOS only allows sound after a tap. Note: the silent switch may mute it.
+  try { if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+        if (actx && actx.state === 'suspended') actx.resume(); } catch (e) {}
+}
+function beep() {
+  if (!actx) return;
+  try {
+    const t0 = actx.currentTime;
+    [0, 0.3, 0.6].forEach(o => {
+      const os = actx.createOscillator(), g = actx.createGain();
+      os.frequency.value = 880; g.gain.setValueAtTime(0.0001, t0 + o);
+      g.gain.exponentialRampToValueAtTime(0.6, t0 + o + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + o + 0.22);
+      os.connect(g); g.connect(actx.destination); os.start(t0 + o); os.stop(t0 + o + 0.25);
+    });
+  } catch (e) {}
+}
 let wakeLock = null;
 async function wake() {   // keep the screen on during a session (if supported)
   if (!('wakeLock' in navigator) || wakeLock || document.hidden || !S.current) return;
@@ -896,6 +996,24 @@ function shareFile(name, text) {
 }
 
 /* ===== 13. ACTIONS ===== */
+function onSetDone(c, i, j) {   // shared by a tap and by a finished hold countdown
+  const x = c.ex[i], s = x.sets[j];
+  c.start = c.start || Date.now(); c.lastTs = Date.now();
+  if (x.kind === 'weight') S.weights[x.ex] = s.w;   // next session of this exercise starts from this weight
+  if (currentPos(c)) startRest(); else ui.rest = null;
+  if (x.sets.every(z => z.done)) {                   // exercise finished → jump to the next one
+    ui.expanded.delete(i);
+    const nxt = currentPos(c);
+    ui.scrollTo = nxt ? `ex${nxt.i}` : (c.tm.length ? 'tm' : 'fin'); ui.pop = null;
+  }
+}
+/* Changing the weight of one set applies it to that set and every set not done yet today,
+   and becomes the starting weight for the next session (also shown in Edit workout plan). */
+function setWeight(x, st, w) {
+  const nw = Math.max(0, Math.round(w * 100) / 100);
+  st.w = nw; x.sets.forEach(s => { if (!s.done) s.w = nw; });
+  S.weights[x.ex] = nw; save(); render();
+}
 const ACT = {
   tab(d) { ui.tab = d.v; if (d.v === 'workout' && !ui.view) ui.view = null; ui.sheet = null; drawSheet(); window.scrollTo(0, 0); render(); },
   startWorkout() { const c = S.current; if (!c) return; phaseLayout(c); c.start = c.start || Date.now(); c.lastTs = Date.now(); save(); render(); },
@@ -934,47 +1052,46 @@ const ACT = {
   },
   toggleSet(d) {
     const c = S.current, i = +d.i, j = +d.s, x = c.ex[i], s = x.sets[j];
+    if (c.timer && c.timer.type === 'hold' && c.timer.i === i && c.timer.s === j) c.timer = null;
     s.done = !s.done; c.lastTs = Date.now(); ui.pop = `s${i}-${j}`;
-    if (s.done) {
-      c.start = c.start || Date.now();
-      if (x.kind === 'weight') S.weights[x.ex] = s.w;           // remember weight for next time
-      if (currentPos(c)) startRest(); else ui.rest = null;
-      if (x.sets.every(z => z.done)) {                           // exercise finished → jump to the next one
-        ui.expanded.delete(i);
-        const nxt = currentPos(c);
-        ui.scrollTo = nxt ? `ex${nxt.i}` : (c.tm.length ? 'tm' : 'fin'); ui.pop = null;
-      }
-    }
+    if (s.done) onSetDone(c, i, j);
     save(); render();
   },
   toggleEx(d) { const i = +d.i; ui.expanded.has(i) ? ui.expanded.delete(i) : ui.expanded.add(i); render(); },
-  wstep(d) {
-    const x = S.current.ex[+d.i], open = x.sets.filter(s => !s.done);
-    const base = (open[0] || x.sets[x.sets.length - 1]).w;
-    const nw = Math.max(0, Math.round((base + (+d.d) * (x.step || 1)) * 100) / 100);
-    (open.length ? open.filter(s => !s.custom) : x.sets).forEach(s => { s.w = nw; });
-    if (open[0] && open[0].custom) open[0].w = nw;
-    S.weights[x.ex] = nw; save(); render();
-  },
+  wstep(d) { const x = S.current.ex[+d.i], open = x.sets.find(s => !s.done) || x.sets[x.sets.length - 1]; setWeight(x, open, open.w + (+d.d) * (x.step || 1)); },
   editSet(d) { ui.edit = { i: +d.i, s: +d.s }; openSheet('edit'); },
-  ew(d) {
-    const x = S.current.ex[ui.edit.i], st = x.sets[ui.edit.s];
-    st.w = Math.max(0, Math.round((st.w + (+d.d) * (x.step || 1)) * 100) / 100); st.custom = true;
-    S.weights[x.ex] = st.w; save(); render(); drawSheet();
-  },
+  ew(d) { const x = S.current.ex[ui.edit.i], st = x.sets[ui.edit.s]; setWeight(x, st, st.w + (+d.d) * (x.step || 1)); drawSheet(); },
   er(d) {
     const x = S.current.ex[ui.edit.i], st = x.sets[ui.edit.s];
-    st.r = Math.max(0, st.r + (+d.d) * (x.kind === 'time' && x.unit !== 'min' ? 5 : 1)); st.custom = true; save(); render(); drawSheet();
+    st.r = Math.max(0, st.r + (+d.d) * (x.kind === 'time' && x.unit !== 'min' ? 5 : 1)); save(); render(); drawSheet();
   },
-  tm(d) { const c = S.current; c.tm[+d.k] = !c.tm[+d.k]; c.lastTs = Date.now(); c.start = c.start || Date.now();
-    if (c.tm.every(Boolean)) ui.scrollTo = 'fin'; save(); render(); },
+  tm(d) {   // tap a treadmill row to tick it off by hand (or un-tick)
+    const c = S.current, k = +d.k;
+    if (c.timer && c.timer.type === 'tm' && c.timer.k === k) c.timer = null;
+    c.tm[k] = !c.tm[k]; if (c.tmLeft) delete c.tmLeft[k]; c.lastTs = Date.now(); c.start = c.start || Date.now();
+    if (c.tm.every(Boolean)) ui.scrollTo = 'fin'; save(); render();
+  },
+  startHold(d) {
+    const c = S.current, i = +d.i, j = +d.s, x = c.ex[i], s = x.sets[j], secs = holdSecs(x, s);
+    unlockAudio(); pauseTimer(c);
+    c.timer = { type:'hold', i, s:j, end: Date.now() + secs * 1000, total: secs };
+    c.start = c.start || Date.now(); ui.rest = null; ui.restOver = 0; save(); render();
+  },
+  tmStart(d) {
+    const c = S.current, k = +d.k, left = tmRemaining(c, k);
+    unlockAudio(); pauseTimer(c);
+    c.timer = { type:'tm', k, end: Date.now() + left * 1000, total: left };
+    c.start = c.start || Date.now(); ui.rest = null; ui.restOver = 0; save(); render();
+  },
+  stopTimer() { const c = S.current; if (!c) return; pauseTimer(c); save(); render(); },
   finish() {
     const c = S.current; if (!c) return;
+    c.timer = null;
     if (!doneCount(c) && !c.tm.some(Boolean)) { if (!confirm('Nothing logged yet — discard this session?')) return; S.current = null; }
     else { c.end = Date.now(); archiveCurrent(); toast('Session saved ✓'); }
     ui.rest = null; ui.restOver = 0; ui.expanded.clear(); ui.view = 'home'; releaseWake(); save(); window.scrollTo(0, 0); render();
   },
-  closeSheet() { ui.sheet = null; drawSheet(); },
+  closeSheet() { ui.sheet = null; ui.pd = null; drawSheet(); },
   skipRest() { ui.rest = null; ui.restOver = 0; tickRest(); },
   startProgram() { S.settings.startDate = dkey(); save(); render(); },
   clearStart() { S.settings.startDate = null; save(); render(); },
@@ -983,8 +1100,25 @@ const ACT = {
   histOpen(d) { ui.histId = d.id; openSheet('hist'); },
   histDel() { if (!confirm('Delete this session from history?')) return; S.history = S.history.filter(h => h.id !== ui.histId); ui.sheet = null; drawSheet(); save(); render(); },
   restStep(d) { S.settings.rest = Math.min(600, Math.max(15, S.settings.rest + (+d.d) * 15)); save(); render(); },
-  planOpen() { openSheet('plan'); },
-  planReset() { if (!confirm('Restore the default plan?')) return; S.plan = null; save(); toast('Plan restored ✓'); drawSheet(); },
+  planOpen() {
+    const w = {}; Object.entries(P().exercises).forEach(([id, e]) => { if (e.kind === 'weight') w[id] = nextWeight(id); });
+    ui.pd = { plan: JSON.parse(JSON.stringify(P())), w }; openSheet('plan');
+  },
+  planReset() {   // resets the draft's sets & reps only (weights stay); still needs Save
+    const def = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+    ui.pd.plan.sessions = def.sessions; drawSheet(); toast('Sets & reps reset — tap Save to keep');
+  },
+  planSave() {
+    const p = ui.pd.plan;
+    for (const s of Object.values(p.sessions)) for (const it of s.items)
+      if (!(it.sets >= 1) || !(it.reps >= 1)) return toast('Sets and reps must be at least 1');
+    for (const v of Object.values(ui.pd.w)) if (!(v >= 0)) return toast('Enter a valid weight');
+    S.plan = p; Object.assign(S.weights, ui.pd.w);
+    const c = S.current;
+    if (c && !c.start && !doneCount(c)) { const keep = { id: c.id, ph: c.ph, cut: c.cut }; S.current = Object.assign(newSession(c.sid), keep); }
+    else if (c) c.ex.forEach(x => { if (x.kind === 'weight' && ui.pd.w[x.ex] != null) x.sets.forEach(s => { if (!s.done) s.w = ui.pd.w[x.ex]; }); });
+    ui.pd = null; ui.sheet = null; drawSheet(); save(); toast('Plan saved ✓'); render();
+  },
   exportWorkouts() {
     if (!S.history.length) return toast('No finished sessions yet');
     const rows = [['Date', 'Session', 'Exercise', 'Set', 'Weight (kg)', 'Per hand', 'Reps / seconds', 'Done', 'Session minutes']];
@@ -1027,14 +1161,22 @@ const ACT = {
 };
 
 /* ===== 14. EVENTS ===== */
+document.addEventListener('pointerdown', unlockAudio, { passive:true });
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const f = ACT[el.dataset.act]; if (!f) return;
   e.preventDefault(); f(el.dataset, el); wake();
 });
 document.addEventListener('input', e => {
-  const k = e.target.dataset && e.target.dataset.input; if (!k) return;
-  if (k.startsWith('ib-') && ui.ib) ui.ib[k.slice(3)] = e.target.value;
+  const el = e.target, ds = el.dataset || {};
+  if (ds.pd && ui.pd) { const it = ui.pd.plan.sessions[ds.sid].items[+ds.k]; it[ds.pd] = parseInt(el.value, 10); return; }
+  if (ds.pw && ui.pd) {   // same exercise can appear in two sessions: keep both boxes in sync
+    ui.pd.w[ds.pw] = parseFloat(String(el.value).replace(',', '.'));
+    document.querySelectorAll(`[data-pw="${ds.pw}"]`).forEach(o => { if (o !== el) o.value = el.value; });
+    return;
+  }
+  const k = ds.input; if (!k) return;
+  if (k.startsWith('ib-') && ui.ib) ui.ib[k.slice(3)] = el.value;
 });
 document.addEventListener('change', async e => {
   const el = e.target;
@@ -1044,13 +1186,6 @@ document.addEventListener('change', async e => {
     return;
   }
   if (el.dataset.change === 'startDate') { S.settings.startDate = el.value || null; save(); render(); }
-  if (el.dataset.change === 'plan') {
-    const v = Number(el.value); if (el.value === '' || !(v >= 0)) return toast('Enter a number');
-    if (!S.plan) S.plan = JSON.parse(JSON.stringify(DEFAULT_PLAN));
-    const path = el.dataset.path.split('.'); let o = S.plan;
-    path.slice(0, -1).forEach(k => { o = o[k]; }); o[path[path.length - 1]] = v;
-    save(); toast('Plan updated ✓');
-  }
 });
 document.addEventListener('toggle', e => {   // remember open cues/tips across re-renders
   const k = e.target.dataset && e.target.dataset.cue; if (k === undefined) return;
@@ -1081,7 +1216,7 @@ makeIcon();
 setInterval(() => {
   const c = $('#clock'); if (c && S.current) c.textContent = elapsed(S.current);
   const tl = $('#tl'); if (tl) tl.innerHTML = timelineHTML(S.current);
-  tickRest();
+  tickTimer(); tickRest();
 }, 1000);
 </script>
 </body>
