@@ -268,7 +268,7 @@ const DEFAULT_PLAN = {
     'Assess strength, glute measurements, thigh feel, energy.'
   ]
 };
-const APP_VERSION = '2026-11-12.1';   // bump on every update so you can see which version your phone runs
+const APP_VERSION = '2026-11-12.2';   // bump on every update so you can see which version your phone runs
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 /* Session timeline phases. Durations (minutes) are editable in Settings; default total 1 h 15 min.
    The timeline starts when you tap "Start workout". */
@@ -750,7 +750,7 @@ function compressImage(file) {   // shrink to max 1600px JPEG so text stays read
 function renderSettings() {
   const st = S.settings;
   return `<section class="card">
-    <div class="row"><span>Rest timer</span><div class="stepper"><button class="round" data-act="restStep" data-d="-1">−</button><b>${mmss(st.rest)}</b><button class="round" data-act="restStep" data-d="1">+</button></div></div>
+    <div class="row"><span>Rest timer</span><div class="stepper sm"><button class="round" data-act="restStep" data-d="-1">−</button><b>${mmss(st.rest)}</b><button class="round" data-act="restStep" data-d="1">+</button></div></div>
     <div class="row"><span>Program start</span><input type="date" data-change="startDate" value="${st.startDate || ''}" style="width:auto"></div>
     <div class="row"><button class="btn inline" data-act="startProgram">Start today</button><button class="btn inline" data-act="clearStart">Clear</button></div>
   </section>
@@ -996,9 +996,17 @@ function shareFile(name, text) {
 }
 
 /* ===== 13. ACTIONS ===== */
+/* The workout (timer + timeline) starts ONLY with the "Start workout" button. Until then you can look
+   around and adjust weights, but ticking sets or starting countdowns asks you to start first. */
+function needStart() {
+  const c = S.current;
+  if (c && c.start) return false;
+  toast('Tap ▶ Start workout first'); const b = $('#action'); if (b) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+  return true;
+}
 function onSetDone(c, i, j) {   // shared by a tap and by a finished hold countdown
   const x = c.ex[i], s = x.sets[j];
-  c.start = c.start || Date.now(); c.lastTs = Date.now();
+  c.lastTs = Date.now();
   if (x.kind === 'weight') S.weights[x.ex] = s.w;   // next session of this exercise starts from this weight
   if (currentPos(c)) startRest(); else ui.rest = null;
   if (x.sets.every(z => z.done)) {                   // exercise finished → jump to the next one
@@ -1051,6 +1059,7 @@ const ACT = {
     save(); window.scrollTo(0, 0); render();
   },
   toggleSet(d) {
+    if (needStart()) return;
     const c = S.current, i = +d.i, j = +d.s, x = c.ex[i], s = x.sets[j];
     if (c.timer && c.timer.type === 'hold' && c.timer.i === i && c.timer.s === j) c.timer = null;
     s.done = !s.done; c.lastTs = Date.now(); ui.pop = `s${i}-${j}`;
@@ -1066,22 +1075,25 @@ const ACT = {
     st.r = Math.max(0, st.r + (+d.d) * (x.kind === 'time' && x.unit !== 'min' ? 5 : 1)); save(); render(); drawSheet();
   },
   tm(d) {   // tap a treadmill row to tick it off by hand (or un-tick)
+    if (needStart()) return;
     const c = S.current, k = +d.k;
     if (c.timer && c.timer.type === 'tm' && c.timer.k === k) c.timer = null;
-    c.tm[k] = !c.tm[k]; if (c.tmLeft) delete c.tmLeft[k]; c.lastTs = Date.now(); c.start = c.start || Date.now();
+    c.tm[k] = !c.tm[k]; if (c.tmLeft) delete c.tmLeft[k]; c.lastTs = Date.now();
     if (c.tm.every(Boolean)) ui.scrollTo = 'fin'; save(); render();
   },
   startHold(d) {
+    if (needStart()) return;
     const c = S.current, i = +d.i, j = +d.s, x = c.ex[i], s = x.sets[j], secs = holdSecs(x, s);
     unlockAudio(); pauseTimer(c);
     c.timer = { type:'hold', i, s:j, end: Date.now() + secs * 1000, total: secs };
-    c.start = c.start || Date.now(); ui.rest = null; ui.restOver = 0; save(); render();
+    ui.rest = null; ui.restOver = 0; save(); render();
   },
   tmStart(d) {
+    if (needStart()) return;
     const c = S.current, k = +d.k, left = tmRemaining(c, k);
     unlockAudio(); pauseTimer(c);
     c.timer = { type:'tm', k, end: Date.now() + left * 1000, total: left };
-    c.start = c.start || Date.now(); ui.rest = null; ui.restOver = 0; save(); render();
+    ui.rest = null; ui.restOver = 0; save(); render();
   },
   stopTimer() { const c = S.current; if (!c) return; pauseTimer(c); save(); render(); },
   finish() {
