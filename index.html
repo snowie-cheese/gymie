@@ -268,7 +268,7 @@ const DEFAULT_PLAN = {
     'Assess strength, glute measurements, thigh feel, energy.'
   ]
 };
-const APP_VERSION = '2026-11-12.2';   // bump on every update so you can see which version your phone runs
+const APP_VERSION = '2026-11-12.3';   // bump on every update so you can see which version your phone runs
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 /* Session timeline phases. Durations (minutes) are editable in Settings; default total 1 h 15 min.
    The timeline starts when you tap "Start workout". */
@@ -534,8 +534,10 @@ function weekCard() {
   return `<section class="card week">${main}<div class="stats"><span>This week <b>${thisWeekCount()}/${goalPerWeek()}</b></span>` +
     `<span>🔥 Streak <b>${st}</b> day${st === 1 ? '' : 's'}</span></div></section>`;
 }
+/* A session counts as "in progress" only after Start workout (or if something was already logged) */
+const isActive = c => !!c && !!(c.start || doneCount(c) || c.tm.some(Boolean));
 function renderHome() {
-  const p = P(), tsid = todaySid(), c = S.current;
+  const p = P(), tsid = todaySid(), c = isActive(S.current) ? S.current : null;
   const doneToday = S.history.filter(h => h.date === dkey());
   let h = weekCard();
   if (c) h += `<button class="btn primary" data-act="resume" style="min-height:64px">▶ Continue ${esc(nm(c.name))} · ${doneCount(c)}/${totalCount(c)} sets</button>`;
@@ -545,7 +547,7 @@ function renderHome() {
   h += Object.entries(p.sessions).map(([sid, s]) => {
     const days = p.schedule.map((v, d) => v === sid ? DAYS[d] : null).filter(Boolean).join(', ');
     const last = S.history.find(x => x.sid === sid);
-    const tag = sid === tsid ? '<span class="pill">Today</span>' : (c && c.sid === sid ? '<span class="pill soft">In progress</span>' : '');
+    const tag = c && c.sid === sid ? '<span class="pill">In progress</span>' : sid === tsid ? '<span class="pill soft">Today</span>' : '';
     return `<button class="pick${sid === tsid ? ' today' : ''}" data-act="pickSession" data-sid="${sid}">
       <span><b>${esc(s.name)}</b><small>${esc(s.sub || '')}${days ? ' · ' + days : ''}</small>
       <small>${last ? 'Last: ' + fmtDate(last.date) : 'Not done yet'}</small></span>${tag}</button>`;
@@ -1046,7 +1048,9 @@ const ACT = {
     save(); render();
   },
   phReset() { S.settings.phases = { ...DEFAULT_PHASES }; save(); render(); },
-  goHome() { ui.view = 'home'; window.scrollTo(0, 0); render(); },
+  goHome() {
+    if (S.current && !isActive(S.current)) { S.current = null; ui.rest = null; save(); }   // only opened, never started → nothing to keep
+    ui.view = 'home'; window.scrollTo(0, 0); render(); },
   resume() { ui.view = 'session'; window.scrollTo(0, 0); render(); },
   pickSession(d) {
     const c = S.current;
